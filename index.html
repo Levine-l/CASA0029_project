@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>UK Flood Zone & Property Prices</title>
+    <link href="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.css" rel="stylesheet" />
+    <script src="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
+        #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+
+        .title-bar {
+            position: absolute; top: 0; left: 0; right: 0; z-index: 10;
+            background: linear-gradient(135deg, rgba(15,23,42,.92), rgba(30,41,59,.88));
+            backdrop-filter: blur(12px);
+            padding: 12px 24px;
+            display: flex; align-items: center; gap: 16px;
+            border-bottom: 1px solid rgba(148,163,184,.15);
+        }
+        .title-bar h1 { font-size: 18px; font-weight: 600; color: #f1f5f9; letter-spacing: .3px; }
+        .title-bar .subtitle { font-size: 12px; color: #94a3b8; margin-left: auto; }
+
+        .panel {
+            position: absolute; top: 64px; left: 16px; z-index: 5;
+            background: rgba(15,23,42,.9); backdrop-filter: blur(12px);
+            border-radius: 12px; padding: 16px; width: 260px;
+            border: 1px solid rgba(148,163,184,.12); color: #e2e8f0;
+            max-height: calc(100vh - 90px); overflow-y: auto;
+        }
+        .panel::-webkit-scrollbar { width: 4px; }
+        .panel::-webkit-scrollbar-thumb { background: rgba(148,163,184,.3); border-radius: 2px; }
+        .panel h3 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .8px; color: #94a3b8; margin-bottom: 12px; }
+        .panel label { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 6px 0; cursor: pointer; }
+        .panel label input[type="checkbox"] { accent-color: #3b82f6; width: 16px; height: 16px; }
+        .panel .divider { height: 1px; background: rgba(148,163,184,.15); margin: 14px 0; }
+        .panel .slider-group { margin: 8px 0; }
+        .panel .slider-group span { font-size: 12px; color: #94a3b8; }
+        .panel input[type="range"] { width: 100%; accent-color: #3b82f6; margin-top: 4px; }
+
+        .legend {
+            position: absolute; bottom: 36px; right: 16px; z-index: 5;
+            background: rgba(15,23,42,.9); backdrop-filter: blur(12px);
+            border-radius: 12px; padding: 16px; width: 220px;
+            border: 1px solid rgba(148,163,184,.12); color: #e2e8f0;
+        }
+        .legend h3 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .8px; color: #94a3b8; margin-bottom: 10px; }
+        .legend-row { display: flex; align-items: center; gap: 8px; font-size: 12px; padding: 3px 0; }
+        .legend-swatch { width: 24px; height: 14px; border-radius: 3px; flex-shrink: 0; }
+        .legend .section-title { font-size: 12px; font-weight: 600; color: #cbd5e1; margin-top: 10px; margin-bottom: 4px; }
+
+        .mapboxgl-popup-content {
+            background: rgba(15,23,42,.95) !important; backdrop-filter: blur(12px);
+            border: 1px solid rgba(148,163,184,.15); border-radius: 10px !important;
+            padding: 16px !important; color: #e2e8f0; min-width: 220px;
+            box-shadow: 0 8px 32px rgba(0,0,0,.4);
+        }
+        .mapboxgl-popup-tip { border-top-color: rgba(15,23,42,.95) !important; }
+        .popup-title { font-size: 14px; font-weight: 600; margin-bottom: 8px; color: #f1f5f9; }
+        .popup-row { display: flex; justify-content: space-between; font-size: 12px; padding: 3px 0; }
+        .popup-row .label { color: #94a3b8; }
+        .popup-row .value { font-weight: 600; color: #e2e8f0; }
+        .popup-price { font-size: 22px; font-weight: 700; margin: 4px 0 6px; }
+
+        #loading-overlay {
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 100;
+            background: rgba(15,23,42,.95);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            transition: opacity .6s ease-out;
+        }
+        #loading-overlay.hidden { opacity: 0; pointer-events: none; }
+        .spinner { width: 48px; height: 48px; border: 3px solid rgba(148,163,184,.2); border-top-color: #3b82f6; border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        #loading-text { color: #94a3b8; margin-top: 16px; font-size: 14px; }
+        #loading-progress { width: 200px; height: 3px; background: rgba(148,163,184,.2); border-radius: 2px; margin-top: 10px; overflow: hidden; }
+        #loading-bar { width: 0%; height: 100%; background: #3b82f6; border-radius: 2px; transition: width .3s; }
+
+        .area-buttons { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+        .area-btn {
+            padding: 4px 10px; border-radius: 6px; font-size: 11px;
+            border: 1px solid rgba(148,163,184,.2); background: rgba(30,41,59,.6);
+            color: #94a3b8; cursor: pointer; text-transform: uppercase; font-weight: 600; transition: all .2s;
+        }
+        .area-btn:hover { background: rgba(59,130,246,.2); color: #93c5fd; border-color: rgba(59,130,246,.4); }
+        .area-btn.active { background: rgba(59,130,246,.3); color: #93c5fd; border-color: #3b82f6; }
+
+        .hover-tooltip {
+            position: absolute; z-index: 20; background: rgba(15,23,42,.92); backdrop-filter: blur(8px);
+            border: 1px solid rgba(148,163,184,.15); border-radius: 8px; padding: 8px 12px;
+            color: #e2e8f0; font-size: 12px; pointer-events: none;
+            transform: translate(-50%, -100%); margin-top: -12px; white-space: nowrap; display: none;
+        }
+    </style>
+</head>
+<body>
+
+<div id="loading-overlay">
+    <div class="spinner"></div>
+    <div id="loading-text">Loading map data...</div>
+    <div id="loading-progress"><div id="loading-bar"></div></div>
+</div>
+
+<div class="title-bar">
+    <h1>UK Flood Risk & Property Prices</h1>
+    <span class="subtitle">Flood Zone 2/3 &middot; Output Area avg. prices (2018&ndash;2025) &middot; Selected regions in England</span>
+</div>
+
+<div class="panel">
+    <h3>Layers</h3>
+    <label><input type="checkbox" id="chk-flood" checked /> Flood Zones</label>
+    <label><input type="checkbox" id="chk-price" checked /> OA Price Choropleth</label>
+    <label><input type="checkbox" id="chk-buildings" checked /> 3D Buildings</label>
+    <label><input type="checkbox" id="chk-bldg-color" checked /> Buildings by Price</label>
+    <label><input type="checkbox" id="chk-price-3d" /> Price 3D Extrusion</label>
+
+    <div class="divider"></div>
+    <h3>Flood Zone</h3>
+    <label><input type="checkbox" id="chk-fz2" checked />
+        <span style="display:inline-block;width:12px;height:12px;border-radius:2px;background:#f59e0b"></span>
+        Zone 2 &mdash; Medium risk
+    </label>
+    <label><input type="checkbox" id="chk-fz3" checked />
+        <span style="display:inline-block;width:12px;height:12px;border-radius:2px;background:#ef4444"></span>
+        Zone 3 &mdash; High risk
+    </label>
+
+    <div class="divider"></div>
+    <h3>Style</h3>
+    <div class="slider-group">
+        <span>Flood opacity: <b id="flood-opacity-val">60%</b></span>
+        <input type="range" id="flood-opacity" min="0" max="100" value="60" />
+    </div>
+    <div class="slider-group">
+        <span>Price opacity: <b id="price-opacity-val">65%</b></span>
+        <input type="range" id="price-opacity" min="0" max="100" value="65" />
+    </div>
+    <div class="slider-group">
+        <span>Building height: <b id="building-height-val">1.0x</b></span>
+        <input type="range" id="building-height" min="0" max="30" value="10" />
+    </div>
+
+    <div class="divider"></div>
+    <h3>Navigate</h3>
+    <div class="area-buttons" id="area-buttons"></div>
+    <div style="font-size:11px;color:#64748b;margin-top:6px">* OA price tiles switch with the selected region</div>
+</div>
+
+<div class="legend">
+    <h3>Legend</h3>
+    <div class="section-title">Average Property Price (&pound;)</div>
+    <div class="legend-row"><div class="legend-swatch" style="background:#313695"></div><span>&lt; &pound;250k</span></div>
+    <div class="legend-row"><div class="legend-swatch" style="background:#4575b4"></div><span>&pound;250k &ndash; &pound;350k</span></div>
+    <div class="legend-row"><div class="legend-swatch" style="background:#74add1"></div><span>&pound;350k &ndash; &pound;450k</span></div>
+    <div class="legend-row"><div class="legend-swatch" style="background:#abd9e9"></div><span>&pound;450k &ndash; &pound;550k</span></div>
+    <div class="legend-row"><div class="legend-swatch" style="background:#e0f3f8"></div><span>&pound;550k &ndash; &pound;650k</span></div>
+    <div class="legend-row"><div class="legend-swatch" style="background:#fee090"></div><span>&pound;650k &ndash; &pound;800k</span></div>
+    <div class="legend-row"><div class="legend-swatch" style="background:#fdae61"></div><span>&pound;800k &ndash; &pound;1.0M</span></div>
+    <div class="legend-row"><div class="legend-swatch" style="background:#f46d43"></div><span>&pound;1.0M &ndash; &pound;1.25M</span></div>
+    <div class="legend-row"><div class="legend-swatch" style="background:#d73027"></div><span>&pound;1.25M &ndash; &pound;1.75M</span></div>
+    <div class="legend-row"><div class="legend-swatch" style="background:#a50026"></div><span>&ge; &pound;1.75M</span></div>
+
+    <div class="section-title" style="margin-top:14px">Flood Zones</div>
+    <div class="legend-row"><div class="legend-swatch" style="background:rgba(250,204,21,.56);border:1px solid rgba(250,204,21,.9)"></div><span>Zone 2 &mdash; Medium probability</span></div>
+    <div class="legend-row"><div class="legend-swatch" style="background:rgba(248,113,113,.56);border:1px solid rgba(248,113,113,.92)"></div><span>Zone 3 &mdash; High probability</span></div>
+
+    <div class="section-title" style="margin-top:14px">Flood Source</div>
+    <div class="legend-row"><div class="legend-swatch" style="background:rgba(56,189,248,.42);border:1px solid rgba(56,189,248,.82)"></div><span>River</span></div>
+    <div class="legend-row"><div class="legend-swatch" style="background:rgba(34,211,238,.42);border:1px solid rgba(34,211,238,.82)"></div><span>Sea / Tidal</span></div>
+    <div class="legend-row"><div class="legend-swatch" style="background:rgba(167,139,250,.42);border:1px solid rgba(167,139,250,.82)"></div><span>River &amp; Sea</span></div>
+</div>
+
+<div class="hover-tooltip" id="tooltip"></div>
+<div id="map"></div>
+
+<script>
+/* ============================================================
+   CONFIG
+   ============================================================ */
+const MAPBOX_TOKEN = 'pk.eyJ1IjoibGV2aW5lbGl1IiwiYSI6ImNta21vc3doOTBleGYza3IycDNsOXRidXQifQ.SdtOnvfZEml6QGLmnnduDQ';
+const FLOOD_TILESET = 'mapbox://levineliu.2n6exn8k';
+const AREA_PRICE_SOURCES = {
+    ny: { url: 'mapbox://levineliu.9ourp5qg', sourceLayer: 'oa_price_ny-d57h7y' },
+    se: { url: 'mapbox://levineliu.40f0lqf6', sourceLayer: 'oa_price_se-5675ib' },
+    so: { url: 'mapbox://levineliu.62ncteef', sourceLayer: 'oa_price_so-b4d9ai' },
+    st: { url: 'mapbox://levineliu.71vz336b', sourceLayer: 'oa_price_st-dpaq1s' },
+    ta: { url: 'mapbox://levineliu.aohw3xu9', sourceLayer: 'oa_price_ta-9l3lwk' },
+    tg: { url: 'mapbox://levineliu.dt8lt8zc', sourceLayer: 'oa_price_tg-80wm52' },
+    tq: { url: 'mapbox://levineliu.3w3nswk7', sourceLayer: 'oa_price_tq-d8dy0v' },
+};
+
+const AREA_CENTERS = {
+    tq: { name: 'London & SE', center: [-0.05, 51.48], zoom: 10 },
+    se: { name: 'Yorkshire',   center: [-1.23, 53.95], zoom: 9 },
+    ny: { name: 'N. Yorks',    center: [-2.79, 54.84], zoom: 8 },
+    so: { name: 'W. Midlands', center: [-2.74, 52.14], zoom: 9 },
+    st: { name: 'Somerset',    center: [-2.72, 51.24], zoom: 9 },
+    ta: { name: 'Humber',      center: [-0.16, 53.93], zoom: 9 },
+    tg: { name: 'Norfolk',     center: [1.36,  52.76], zoom: 9 },
+};
+
+const BUILDING_MIN_ZOOM = 13;
+const BUILDING_COLOR_MIN_ZOOM = 14.2;
+const BUILDING_VIEW_ZOOM = BUILDING_COLOR_MIN_ZOOM;
+const BUILDING_PITCH = 50;
+const BUILDING_BEARING = -15;
+
+const PRICE_BINS = [
+    { max: 250000, color: '#313695' },
+    { max: 350000, color: '#4575b4' },
+    { max: 450000, color: '#74add1' },
+    { max: 550000, color: '#abd9e9' },
+    { max: 650000, color: '#e0f3f8' },
+    { max: 800000, color: '#fee090' },
+    { max: 1000000, color: '#fdae61' },
+    { max: 1250000, color: '#f46d43' },
+    { max: 1750000, color: '#d73027' },
+    { max: Infinity, color: '#a50026' },
+];
+const PRICE_STEP_STOPS = [];
+for (let i = 1; i < PRICE_BINS.length; i++) {
+    PRICE_STEP_STOPS.push(PRICE_BINS[i - 1].max, PRICE_BINS[i].color);
+}
+const PRICE_COLOR = ['step', ['get', 'p'], PRICE_BINS[0].color, ...PRICE_STEP_STOPS];
+
+/* ============================================================
+   MAP
+   ============================================================ */
+mapboxgl.accessToken = MAPBOX_TOKEN;
+
+const map = new mapboxgl.Map({
+    container: 'map',
+    style: 'mapbox://styles/mapbox/dark-v11',
+    center: [-0.05, 51.51],
+    zoom: BUILDING_VIEW_ZOOM,
+    pitch: BUILDING_PITCH,
+    bearing: BUILDING_BEARING,
+    antialias: true,
+    hash: true,
+});
+
+map.addControl(new mapboxgl.NavigationControl(), 'top-right');
+map.addControl(new mapboxgl.ScaleControl({ unit: 'metric' }), 'bottom-right');
+
+map.once('load', () => {
+    if (map.getZoom() < BUILDING_MIN_ZOOM || map.getPitch() < BUILDING_PITCH) {
+        map.easeTo({ zoom: Math.max(map.getZoom(), BUILDING_VIEW_ZOOM), pitch: BUILDING_PITCH, bearing: BUILDING_BEARING, duration: 800, essential: true });
+    }
+});
+
+/* ---- Auto pitch: top-down < 14, angled >= 14 ---- */
+let _autoPitch = 0;                // track target pitch
+map.on('zoom', () => {
+    const target = map.getZoom() < BUILDING_MIN_ZOOM ? 0 : BUILDING_PITCH;
+    if (target !== _autoPitch) {
+        _autoPitch = target;
+        map.easeTo({ pitch: target, duration: 500 });
+    }
+});
+
+/* ---- Area navigation buttons ---- */
+const initialAreaCode = nearestAreaCode(map.getCenter());
+const areaBtnsEl = document.getElementById('area-buttons');
+Object.entries(AREA_CENTERS).forEach(([code, info]) => {
+    const btn = document.createElement('button');
+    btn.className = 'area-btn' + (code === initialAreaCode ? ' active' : '');
+    btn.textContent = code;
+    btn.title = info.name;
+    btn.dataset.areaCode = code;
+    btn.onclick = () => {
+        map.flyTo({ center: info.center, zoom: Math.max(info.zoom, BUILDING_VIEW_ZOOM), pitch: BUILDING_PITCH, bearing: BUILDING_BEARING, duration: 2000 });
+        updateActiveAreaButton(code);
+        switchAreaPriceData(code);
+    };
+    areaBtnsEl.appendChild(btn);
+});
+
+/* ---- Loading helpers ---- */
+const loadBar = document.getElementById('loading-bar');
+const loadTxt = document.getElementById('loading-text');
+function setLoad(t, p) { loadTxt.textContent = t; loadBar.style.width = p + '%'; }
+function hideLoad() { document.getElementById('loading-overlay').classList.add('hidden'); }
+function areaPriceSource(code) { return AREA_PRICE_SOURCES[code] || AREA_PRICE_SOURCES.tq; }
+function nearestAreaCode(center) {
+    let bestCode = 'tq';
+    let bestDistance = Infinity;
+    Object.entries(AREA_CENTERS).forEach(([code, info]) => {
+        const dx = center.lng - info.center[0];
+        const dy = center.lat - info.center[1];
+        const distance = dx * dx + dy * dy;
+        if (distance < bestDistance) {
+            bestDistance = distance;
+            bestCode = code;
+        }
+    });
+    return bestCode;
+}
+function updateActiveAreaButton(code) {
+    document.querySelectorAll('.area-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.areaCode === code));
+}
+
+/* ============================================================
+   LAYERS
+   ============================================================ */
+let oaReady = false;
+let currentAreaCode = initialAreaCode;
+let currentAreaPriceSourceLayer = areaPriceSource(currentAreaCode).sourceLayer;
+
+function removePriceLayersAndSource() {
+    ['oa-price-extrusion', 'oa-price-line', 'oa-price-fill', 'oa-price-query'].forEach(id => {
+        if (map.getLayer(id)) map.removeLayer(id);
+    });
+    if (map.getSource('oa-price-src')) map.removeSource('oa-price-src');
+}
+
+function switchAreaPriceData(code) {
+    currentAreaCode = code;
+    currentAreaPriceSourceLayer = areaPriceSource(code).sourceLayer;
+    removePriceLayersAndSource();
+    addPriceLayers();
+    oaReady = true;
+    scheduleBuildingColor();
+}
+
+map.on('load', () => {
+    setLoad('Adding flood zone tiles...', 20);
+
+    /* --- Flood zone vector tiles --- */
+    map.addSource('flood-src', {
+        type: 'vector',
+        url: FLOOD_TILESET,
+    });
+
+    /* FZ3 fill */
+    map.addLayer({
+        id: 'flood-fz3-fill', type: 'fill',
+        source: 'flood-src', 'source-layer': 'flood_uk_simplified',
+        filter: ['==', ['get', 'flood_zone'], 'FZ3'],
+        paint: {
+            'fill-color': ['match', ['get', 'flood_source'],
+                'sea',           'rgba(34,211,238,0.36)',
+                'river and sea', 'rgba(167,139,250,0.36)',
+                                 'rgba(248,113,113,0.36)'],
+            'fill-opacity': 0.52,
+            'fill-antialias': false,
+        },
+    });
+
+    /* FZ2 fill */
+    map.addLayer({
+        id: 'flood-fz2-fill', type: 'fill',
+        source: 'flood-src', 'source-layer': 'flood_uk_simplified',
+        filter: ['==', ['get', 'flood_zone'], 'FZ2'],
+        paint: {
+            'fill-color': ['match', ['get', 'flood_source'],
+                'sea',           'rgba(125,211,252,0.26)',
+                'river and sea', 'rgba(196,181,253,0.26)',
+                                 'rgba(250,204,21,0.24)'],
+            'fill-opacity': 0.4,
+            'fill-antialias': false,
+        },
+    });
+
+    /* FZ3 outline */
+    map.addLayer({
+        id: 'flood-fz3-line', type: 'line',
+        source: 'flood-src', 'source-layer': 'flood_uk_simplified',
+        filter: ['==', ['get', 'flood_zone'], 'FZ3'],
+        paint: {
+            'line-color': 'rgba(248,113,113,0.94)',
+            'line-width': ['interpolate', ['linear'], ['zoom'], 8, 0.3, 14, 1.2],
+        },
+    });
+
+    /* FZ2 outline */
+    map.addLayer({
+        id: 'flood-fz2-line', type: 'line',
+        source: 'flood-src', 'source-layer': 'flood_uk_simplified',
+        filter: ['==', ['get', 'flood_zone'], 'FZ2'],
+        paint: {
+            'line-color': 'rgba(250,204,21,0.9)',
+            'line-width': ['interpolate', ['linear'], ['zoom'], 8, 0.2, 14, 0.8],
+        },
+    });
+
+    /* --- OA regional price tiles (Mapbox-hosted vector source) --- */
+    setLoad('Connecting Mapbox regional price tiles...', 55);
+    addPriceLayers();
+    addBuildingLayer();
+    oaReady = true;
+    map.once('idle', () => {
+        setLoad('Rendering...', 95);
+        setTimeout(hideLoad, 300);
+    });
+});
+
+/* ---- Price layers ---- */
+function addPriceLayers() {
+    const sourceConfig = areaPriceSource(currentAreaCode);
+    currentAreaPriceSourceLayer = sourceConfig.sourceLayer;
+    map.addSource('oa-price-src', {
+        type: 'vector',
+        url: sourceConfig.url,
+        promoteId: { [sourceConfig.sourceLayer]: 'c' },
+    });
+
+    map.addLayer({
+        id: 'oa-price-query', type: 'fill', source: 'oa-price-src', 'source-layer': sourceConfig.sourceLayer,
+        paint: {
+            'fill-color': PRICE_COLOR,
+            'fill-opacity': 0,
+        },
+    }, 'flood-fz3-fill');
+
+    /* Flat choropleth (inserted below flood layers) */
+    map.addLayer({
+        id: 'oa-price-fill', type: 'fill', source: 'oa-price-src', 'source-layer': sourceConfig.sourceLayer,
+        paint: {
+            'fill-color': PRICE_COLOR,
+            'fill-opacity': ['case', ['boolean', ['feature-state', 'hover'], false], 0.85, 0.65],
+        },
+    }, 'flood-fz3-fill');
+
+    /* OA boundaries (higher zoom) */
+    map.addLayer({
+        id: 'oa-price-line', type: 'line', source: 'oa-price-src', 'source-layer': sourceConfig.sourceLayer,
+        minzoom: 14,
+        paint: { 'line-color': 'rgba(148,163,184,0.12)', 'line-width': 0.5 },
+    }, 'flood-fz3-fill');
+
+    /* Optional 3D extrusion by price */
+    map.addLayer({
+        id: 'oa-price-extrusion', type: 'fill-extrusion', source: 'oa-price-src', 'source-layer': sourceConfig.sourceLayer,
+        layout: { visibility: 'none' },
+        paint: {
+            'fill-extrusion-color': PRICE_COLOR,
+            'fill-extrusion-height': [
+                'interpolate', ['linear'], ['get', 'p'],
+                100000, 10, 300000, 50, 500000, 100, 1000000, 200, 5000000, 500,
+            ],
+            'fill-extrusion-base': 0,
+            'fill-extrusion-opacity': 0.45,
+        },
+    });
+
+    if (!priceSourceListenerBound) {
+        map.on('sourcedata', e => {
+            if (e.sourceId === 'oa-price-src' && e.isSourceLoaded) scheduleBuildingColor();
+        });
+        priceSourceListenerBound = true;
+    }
+}
+
+/* ---- 3D buildings (Mapbox composite) ---- */
+function addBuildingLayer() {
+    if (map.getLayer('3d-buildings')) return;
+
+    map.addLayer({
+        id: '3d-buildings', source: 'composite', 'source-layer': 'building',
+        type: 'fill-extrusion', minzoom: BUILDING_MIN_ZOOM,
+        filter: ['==', ['get', 'extrude'], 'true'],
+        paint: {
+            'fill-extrusion-color': '#94a3b8',
+            'fill-extrusion-height': ['get', 'height'],
+            'fill-extrusion-base': ['get', 'min_height'],
+            'fill-extrusion-opacity': 0.6,
+        },
+    });
+
+    /* Update building colors once source data loads */
+    map.on('sourcedata', e => {
+        if (e.sourceId === 'composite' && e.isSourceLoaded) scheduleBuildingColor();
+    });
+
+    if (oaReady) scheduleBuildingColor();
+}
+
+/* ============================================================
+   RUNTIME BUILDING COLORING BY OA PRICE
+   ============================================================ */
+let colorTimer = null;
+let bldgColorEnabled = true;
+let buildingHeightScale = 1;
+let priceSourceListenerBound = false;
+
+function scheduleBuildingColor() {
+    clearTimeout(colorTimer);
+    colorTimer = setTimeout(colorBuildingsByOA, 400);
+}
+
+function resetBuildingColor() {
+    if (map.getLayer('priced-buildings')) map.removeLayer('priced-buildings');
+    if (map.getSource('priced-buildings-src')) map.removeSource('priced-buildings-src');
+    if (map.getLayer('3d-buildings')) {
+        map.setPaintProperty('3d-buildings', 'fill-extrusion-color', '#94a3b8');
+        map.setPaintProperty('3d-buildings', 'fill-extrusion-opacity', 0.6);
+    }
+}
+
+function priceColor(value) {
+    for (const bin of PRICE_BINS) {
+        if (value < bin.max) return bin.color;
+    }
+    return PRICE_BINS[PRICE_BINS.length - 1].color;
+}
+
+function featureOuterRing(feature) {
+    return feature.geometry.type === 'Polygon' ? feature.geometry.coordinates[0]
+         : feature.geometry.type === 'MultiPolygon' ? feature.geometry.coordinates[0][0] : null;
+}
+
+function featureCentroid(feature) {
+    const ring = featureOuterRing(feature);
+    if (!ring || ring.length < 3) return null;
+    let cx = 0, cy = 0;
+    for (const pt of ring) { cx += pt[0]; cy += pt[1]; }
+    return [cx / ring.length, cy / ring.length];
+}
+
+function dedupeBuildings(features) {
+    const out = [];
+    const seen = new Set();
+    for (const feature of features) {
+        const center = featureCentroid(feature);
+        if (!center) continue;
+        const key = center[0].toFixed(6) + '_' + center[1].toFixed(6);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push({ feature, center });
+    }
+    return out;
+}
+
+function colorBuildingsByOA() {
+    if (!bldgColorEnabled || !oaReady || !map.getLayer('3d-buildings') || !map.getLayer('oa-price-query')) {
+        if (!bldgColorEnabled) resetBuildingColor();
+        return;
+    }
+    if (map.getZoom() < BUILDING_COLOR_MIN_ZOOM) {
+        resetBuildingColor();
+        return;
+    }
+
+    /* Build OA centroid lookup from rendered price-query features */
+    const oaFeats = map.queryRenderedFeatures({ layers: ['oa-price-query'] });
+    const oaLookup = [];
+    const seen = new Set();
+
+    for (const f of oaFeats) {
+        const id = f.properties && f.properties.c;
+        if (seen.has(id)) continue;
+        const center = featureCentroid(f);
+        const price = Number(f.properties && f.properties.p);
+        if (!id || !center || !Number.isFinite(price)) continue;
+        seen.add(id);
+        oaLookup.push({ p: price, cx: center[0], cy: center[1] });
+    }
+    if (!oaLookup.length) {
+        resetBuildingColor();
+        return;
+    }
+
+    /* Match each visible building to nearest OA centroid */
+    const bldgs = dedupeBuildings(map.queryRenderedFeatures({ layers: ['3d-buildings'] }));
+    const pricedBuildings = [];
+
+    for (const { feature, center } of bldgs) {
+        if (!feature.geometry) continue;
+        const bx = center[0];
+        const by = center[1];
+
+        let best = null, bestD = Infinity;
+        for (const oa of oaLookup) {
+            const d = (bx - oa.cx) ** 2 + (by - oa.cy) ** 2;
+            if (d < bestD) { bestD = d; best = oa.p; }
+        }
+        if (best !== null) {
+            const minHeight = Number(feature.properties?.min_height) || 0;
+            const sourceHeight = Number(feature.properties?.height) || 0;
+            pricedBuildings.push({
+                type: 'Feature',
+                properties: {
+                    renderColor: priceColor(best),
+                    renderHeight: Math.max(minHeight, sourceHeight * buildingHeightScale),
+                    renderBase: minHeight,
+                },
+                geometry: feature.geometry,
+            });
+        }
+    }
+
+    if (!pricedBuildings.length) {
+        resetBuildingColor();
+        return;
+    }
+
+    const pricedGeoJson = { type: 'FeatureCollection', features: pricedBuildings };
+    if (map.getLayer('priced-buildings')) map.removeLayer('priced-buildings');
+    if (map.getSource('priced-buildings-src')) map.removeSource('priced-buildings-src');
+    map.addSource('priced-buildings-src', { type: 'geojson', data: pricedGeoJson });
+    map.addLayer({
+        id: 'priced-buildings',
+        type: 'fill-extrusion',
+        source: 'priced-buildings-src',
+        paint: {
+            'fill-extrusion-color': ['get', 'renderColor'],
+            'fill-extrusion-height': ['get', 'renderHeight'],
+            'fill-extrusion-base': ['get', 'renderBase'],
+            'fill-extrusion-opacity': 1,
+        },
+    });
+    map.setPaintProperty('3d-buildings', 'fill-extrusion-opacity', 0.08);
+}
+
+map.on('moveend', scheduleBuildingColor);
+
+/* ============================================================
+   INTERACTIVITY
+   ============================================================ */
+const popup = new mapboxgl.Popup({ closeButton: true, closeOnClick: true, maxWidth: '300px' });
+const tooltip = document.getElementById('tooltip');
+
+/* Click popup */
+map.on('click', e => {
+    const oaF = map.queryRenderedFeatures(e.point, { layers: ['oa-price-fill'].filter(id => map.getLayer(id)) });
+    const flF = map.queryRenderedFeatures(e.point, { layers: ['flood-fz3-fill','flood-fz2-fill'].filter(id => map.getLayer(id)) });
+    if (!oaF.length && !flF.length) { popup.remove(); return; }
+
+    let html = '';
+    if (oaF.length) {
+        const p = oaF[0].properties;
+        const fmt = p.p >= 1e6 ? '\u00A3' + (p.p / 1e6).toFixed(2) + 'M' : '\u00A3' + (p.p / 1000).toFixed(0) + 'k';
+        html += '<div class="popup-title">Output Area</div>'
+             +  '<div class="popup-row"><span class="label">OA Code</span><span class="value">' + p.c + '</span></div>'
+             +  '<div class="popup-price" style="color:' + priceHex(p.p) + '">' + fmt + '</div>'
+             +  '<div class="popup-row"><span class="label">Avg Price</span><span class="value">\u00A3' + Number(p.p).toLocaleString('en-GB') + '</span></div>'
+             +  '<div class="popup-row"><span class="label">Transactions</span><span class="value">' + p.d + '</span></div>';
+    }
+    if (flF.length) {
+        if (html) html += '<hr style="border:0;border-top:1px solid rgba(148,163,184,.15);margin:10px 0">';
+        const zones = [...new Set(flF.map(f => f.properties.flood_zone))];
+        const src   = [...new Set(flF.map(f => f.properties.flood_source))];
+        const orig  = [...new Set(flF.map(f => f.properties.origin).filter(Boolean))];
+        html += '<div class="popup-title" style="color:#f59e0b">\u26A0 Flood Risk Area</div>'
+             +  '<div class="popup-row"><span class="label">Zone</span><span class="value">' + zones.join(', ') + '</span></div>'
+             +  '<div class="popup-row"><span class="label">Source</span><span class="value">' + src.join(', ') + '</span></div>';
+        if (orig.length) html += '<div class="popup-row"><span class="label">Origin</span><span class="value" style="text-align:right;max-width:150px">' + orig.join(', ') + '</span></div>';
+    }
+    popup.setLngLat(e.lngLat).setHTML(html).addTo(map);
+});
+
+function priceHex(v) {
+    return priceColor(v);
+}
+
+function oaFeatureTarget(id) {
+    return { source: 'oa-price-src', sourceLayer: currentAreaPriceSourceLayer, id };
+}
+
+/* Hover */
+let hovId = null;
+map.on('mousemove', 'oa-price-fill', e => {
+    map.getCanvas().style.cursor = 'pointer';
+    if (!e.features.length) return;
+    const f = e.features[0];
+    if (hovId !== null && hovId !== f.id)
+        map.setFeatureState(oaFeatureTarget(hovId), { hover: false });
+    hovId = f.id;
+    map.setFeatureState(oaFeatureTarget(hovId), { hover: true });
+
+    const p = f.properties.p;
+    const fmt = p >= 1e6 ? '\u00A3' + (p/1e6).toFixed(1) + 'M' : '\u00A3' + (p/1000).toFixed(0) + 'k';
+    tooltip.innerHTML = '<b>' + f.properties.c + '</b> &middot; ' + fmt;
+    tooltip.style.display = 'block';
+    tooltip.style.left = e.point.x + 'px';
+    tooltip.style.top  = e.point.y + 'px';
+});
+map.on('mouseleave', 'oa-price-fill', () => {
+    map.getCanvas().style.cursor = '';
+    if (hovId !== null) map.setFeatureState(oaFeatureTarget(hovId), { hover: false });
+    hovId = null;
+    tooltip.style.display = 'none';
+});
+
+['flood-fz3-fill','flood-fz2-fill'].forEach(id => {
+    map.on('mouseenter', id, () => { map.getCanvas().style.cursor = 'pointer'; });
+    map.on('mouseleave', id, () => { map.getCanvas().style.cursor = ''; });
+});
+
+/* ============================================================
+   UI CONTROLS
+   ============================================================ */
+function toggleVis(ids, on) {
+    ids.forEach(id => { if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none'); });
+}
+
+document.getElementById('chk-flood').onchange = e => toggleVis(['flood-fz2-fill','flood-fz3-fill','flood-fz2-line','flood-fz3-line'], e.target.checked);
+document.getElementById('chk-price').onchange = e => {
+    toggleVis(['oa-price-fill','oa-price-line'], e.target.checked);
+    if (bldgColorEnabled) scheduleBuildingColor();
+};
+document.getElementById('chk-buildings').onchange = e => {
+    toggleVis(['3d-buildings','priced-buildings'], e.target.checked);
+    if (e.target.checked && bldgColorEnabled) scheduleBuildingColor();
+    if (!e.target.checked) resetBuildingColor();
+};
+document.getElementById('chk-bldg-color').onchange = e => {
+    bldgColorEnabled = e.target.checked;
+    if (bldgColorEnabled) scheduleBuildingColor();
+    else resetBuildingColor();
+};
+document.getElementById('chk-price-3d').onchange = e => toggleVis(['oa-price-extrusion'], e.target.checked);
+document.getElementById('chk-fz2').onchange = e => toggleVis(['flood-fz2-fill','flood-fz2-line'], e.target.checked);
+document.getElementById('chk-fz3').onchange = e => toggleVis(['flood-fz3-fill','flood-fz3-line'], e.target.checked);
+
+document.getElementById('flood-opacity').oninput = e => {
+    const v = e.target.value / 100;
+    document.getElementById('flood-opacity-val').textContent = e.target.value + '%';
+    ['flood-fz2-fill','flood-fz3-fill'].forEach(id => { if (map.getLayer(id)) map.setPaintProperty(id, 'fill-opacity', v); });
+};
+
+document.getElementById('price-opacity').oninput = e => {
+    const v = e.target.value / 100;
+    document.getElementById('price-opacity-val').textContent = e.target.value + '%';
+    if (map.getLayer('oa-price-fill'))
+        map.setPaintProperty('oa-price-fill', 'fill-opacity', ['case', ['boolean', ['feature-state', 'hover'], false], Math.min(v+0.2,1), v]);
+};
+
+document.getElementById('building-height').oninput = e => {
+    const v = e.target.value / 10;
+    buildingHeightScale = v;
+    document.getElementById('building-height-val').textContent = v.toFixed(1) + 'x';
+    if (map.getLayer('3d-buildings')) {
+        map.setPaintProperty('3d-buildings', 'fill-extrusion-height', ['interpolate', ['linear'], ['zoom'], BUILDING_MIN_ZOOM - 0.5, 0, BUILDING_MIN_ZOOM, ['*', v, ['get', 'height']]]);
+    }
+    if (bldgColorEnabled) scheduleBuildingColor();
+};
+</script>
+</body>
+</html>
