@@ -417,14 +417,18 @@ function addPriceLayers() {
         paint: {
             'fill-color': PRICE_COLOR,
             'fill-opacity': ['case', ['boolean', ['feature-state', 'hover'], false], 0.85, 0.65],
+            'fill-antialias': false,
         },
     }, 'flood-fz3-fill');
 
     /* OA boundaries (higher zoom) */
     map.addLayer({
         id: 'oa-price-line', type: 'line', source: 'oa-price-src', 'source-layer': sourceConfig.sourceLayer,
-        minzoom: 14,
-        paint: { 'line-color': 'rgba(148,163,184,0.12)', 'line-width': 0.5 },
+        minzoom: 12,
+        paint: {
+            'line-color': 'rgba(148,163,184,0.22)',
+            'line-width': ['interpolate', ['linear'], ['zoom'], 12, 0.35, 14, 0.55, 16, 0.8],
+        },
     }, 'flood-fz3-fill');
 
     /* Optional 3D extrusion by price */
