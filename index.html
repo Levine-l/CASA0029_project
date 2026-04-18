@@ -143,7 +143,7 @@
     <div class="divider"></div>
     <h3>Navigate</h3>
     <div class="area-buttons" id="area-buttons"></div>
-    <div style="font-size:11px;color:#64748b;margin-top:6px">* OA price tiles switch with the selected region</div>
+    <div style="font-size:11px;color:#64748b;margin-top:6px">* City cases switch to the matching OA price source region</div>
 </div>
 
 <div class="legend">
@@ -189,15 +189,12 @@ const AREA_PRICE_SOURCES = {
     tq: { url: 'mapbox://levineliu.3w3nswk7', sourceLayer: 'oa_price_tq-d8dy0v' },
 };
 
-const AREA_CENTERS = {
-    tq: { name: 'London & SE', center: [-0.05, 51.48], zoom: 10 },
-    se: { name: 'Yorkshire',   center: [-1.23, 53.95], zoom: 9 },
-    ny: { name: 'N. Yorks',    center: [-2.79, 54.84], zoom: 8 },
-    so: { name: 'W. Midlands', center: [-2.74, 52.14], zoom: 9 },
-    st: { name: 'Somerset',    center: [-2.72, 51.24], zoom: 9 },
-    ta: { name: 'Humber',      center: [-0.16, 53.93], zoom: 9 },
-    tg: { name: 'Norfolk',     center: [1.36,  52.76], zoom: 9 },
-};
+const CITY_CASES = [
+    { key: 'hull', name: 'Hull', theme: 'surface water flooding', center: [-0.3367, 53.7443], zoom: 10.8, areaCode: 'ta' },
+    { key: 'york', name: 'York', theme: 'river flooding', center: [-1.0827, 53.9583], zoom: 10.8, areaCode: 'se' },
+    { key: 'great-yarmouth', name: 'Great Yarmouth', theme: 'coastal flooding', center: [1.7297, 52.6080], zoom: 11.2, areaCode: 'tg' },
+    { key: 'london', name: 'London', theme: 'multiple flood sources', center: [-0.1276, 51.5072], zoom: 10.8, areaCode: 'tq' },
+];
 
 const BUILDING_MIN_ZOOM = 13;
 const BUILDING_COLOR_MIN_ZOOM = 14.2;
@@ -259,18 +256,20 @@ map.on('zoom', () => {
 });
 
 /* ---- Area navigation buttons ---- */
-const initialAreaCode = nearestAreaCode(map.getCenter());
+const initialCase = nearestCityCase(map.getCenter());
+const initialAreaCode = initialCase.areaCode;
 const areaBtnsEl = document.getElementById('area-buttons');
-Object.entries(AREA_CENTERS).forEach(([code, info]) => {
+CITY_CASES.forEach(info => {
     const btn = document.createElement('button');
-    btn.className = 'area-btn' + (code === initialAreaCode ? ' active' : '');
-    btn.textContent = code;
-    btn.title = info.name;
-    btn.dataset.areaCode = code;
+    btn.className = 'area-btn' + (info.key === initialCase.key ? ' active' : '');
+    btn.textContent = info.name;
+    btn.title = info.theme;
+    btn.dataset.caseKey = info.key;
     btn.onclick = () => {
-        map.flyTo({ center: info.center, zoom: Math.max(info.zoom, BUILDING_VIEW_ZOOM), pitch: BUILDING_PITCH, bearing: BUILDING_BEARING, duration: 2000 });
-        updateActiveAreaButton(code);
-        switchAreaPriceData(code);
+        map.stop();
+        map.jumpTo({ center: info.center, zoom: Math.max(info.zoom, BUILDING_VIEW_ZOOM), pitch: BUILDING_PITCH, bearing: BUILDING_BEARING });
+        updateActiveCaseButton(info.key);
+        switchAreaPriceData(info.areaCode);
     };
     areaBtnsEl.appendChild(btn);
 });
@@ -281,22 +280,22 @@ const loadTxt = document.getElementById('loading-text');
 function setLoad(t, p) { loadTxt.textContent = t; loadBar.style.width = p + '%'; }
 function hideLoad() { document.getElementById('loading-overlay').classList.add('hidden'); }
 function areaPriceSource(code) { return AREA_PRICE_SOURCES[code] || AREA_PRICE_SOURCES.tq; }
-function nearestAreaCode(center) {
-    let bestCode = 'tq';
+function nearestCityCase(center) {
+    let bestCase = CITY_CASES[CITY_CASES.length - 1];
     let bestDistance = Infinity;
-    Object.entries(AREA_CENTERS).forEach(([code, info]) => {
+    CITY_CASES.forEach(info => {
         const dx = center.lng - info.center[0];
         const dy = center.lat - info.center[1];
         const distance = dx * dx + dy * dy;
         if (distance < bestDistance) {
             bestDistance = distance;
-            bestCode = code;
+            bestCase = info;
         }
     });
-    return bestCode;
+    return bestCase;
 }
-function updateActiveAreaButton(code) {
-    document.querySelectorAll('.area-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.areaCode === code));
+function updateActiveCaseButton(caseKey) {
+    document.querySelectorAll('.area-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.caseKey === caseKey));
 }
 
 /* ============================================================
