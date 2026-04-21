@@ -84,6 +84,27 @@
         }
         .area-btn:hover { background: rgba(59,130,246,.2); color: #93c5fd; border-color: rgba(59,130,246,.4); }
         .area-btn.active { background: rgba(59,130,246,.3); color: #93c5fd; border-color: #3b82f6; }
+        .panel-note { font-size:11px; color:#64748b; margin-top:6px; line-height:1.45; }
+
+        .compare-card {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 10px;
+            background: rgba(30,41,59,.55);
+            border: 1px solid rgba(148,163,184,.12);
+        }
+        .compare-title { font-size: 12px; font-weight: 600; color: #e2e8f0; }
+        .compare-subtitle { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+        .compare-summary { font-size: 11px; color: #cbd5e1; margin-top: 8px; line-height: 1.45; }
+        .compare-bars { margin-top: 10px; display: grid; gap: 8px; }
+        .compare-row { display: grid; gap: 4px; }
+        .compare-row-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 11px; color: #cbd5e1; }
+        .compare-row-head strong { color: #f8fafc; font-weight: 600; }
+        .compare-bar-track { width: 100%; height: 10px; border-radius: 999px; background: rgba(15,23,42,.9); overflow: hidden; }
+        .compare-bar-fill { height: 100%; border-radius: 999px; }
+        .compare-bar-fill.in { background: linear-gradient(90deg, rgba(248,113,113,.72), rgba(239,68,68,.95)); }
+        .compare-bar-fill.out { background: linear-gradient(90deg, rgba(96,165,250,.72), rgba(59,130,246,.95)); }
+        .compare-empty { font-size: 11px; color: #94a3b8; line-height: 1.45; }
 
         .hover-tooltip {
             position: absolute; z-index: 20; background: rgba(15,23,42,.92); backdrop-filter: blur(8px);
@@ -143,7 +164,24 @@
     <div class="divider"></div>
     <h3>Navigate</h3>
     <div class="area-buttons" id="area-buttons"></div>
-    <div style="font-size:11px;color:#64748b;margin-top:6px">* City cases switch to the matching OA price source region</div>
+    <div class="panel-note">* City cases switch to the matching OA price source region</div>
+
+    <div class="divider"></div>
+    <h3>OA Price Dataset</h3>
+    <div class="area-buttons" id="price-mode-buttons">
+        <button class="area-btn active" data-price-mode="current">Current OA</button>
+        <button class="area-btn" data-price-mode="hpm">OA HPM</button>
+    </div>
+    <div class="panel-note" id="price-mode-status">Map: current OA avg price. Compare: postcode HPM median GBP/sqm.</div>
+
+    <div class="divider"></div>
+    <h3>Flood Price Compare</h3>
+    <div class="compare-card">
+        <div class="compare-title" id="compare-title">Current city case</div>
+        <div class="compare-subtitle" id="compare-subtitle">Postcode HPM median GBP/sqm</div>
+        <div class="compare-summary" id="compare-summary">Jump to a city case to compare postcode HPM prices inside and outside flood zones.</div>
+        <div class="compare-bars" id="compare-bars"></div>
+    </div>
 </div>
 
 <div class="legend">
@@ -179,6 +217,13 @@
    ============================================================ */
 const MAPBOX_TOKEN = 'pk.eyJ1IjoibGV2aW5lbGl1IiwiYSI6ImNta21vc3doOTBleGYza3IycDNsOXRidXQifQ.SdtOnvfZEml6QGLmnnduDQ';
 const FLOOD_TILESET = 'mapbox://levineliu.2n6exn8k';
+const LAD_BOUNDARY_TILESET = 'mapbox://levineliu.3bn5uiv7';
+const LONDON_BOUNDARY_TILESET = 'mapbox://levineliu.0jgmqqaj';
+const LAD_BOUNDARY_SOURCE_LAYER = 'LAD_Dec_2021_GB_BFC_2022_-428-bj5i72';
+const LONDON_BOUNDARY_SOURCE_LAYER = 'gla-acxdsb';
+const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/Levine-l/CASA0029_project/main/hpm_processed';
+const OA_HPM_CSV_URL = GITHUB_RAW_BASE + '/oa21_hpm_priceper.csv';
+const POSTCODE_HPM_CSV_URL = GITHUB_RAW_BASE + '/postcode_hpm_selected.csv';
 const AREA_PRICE_SOURCES = {
     ny: { url: 'mapbox://levineliu.9ourp5qg', sourceLayer: 'oa_price_ny-d57h7y' },
     se: { url: 'mapbox://levineliu.40f0lqf6', sourceLayer: 'oa_price_se-5675ib' },
@@ -190,10 +235,10 @@ const AREA_PRICE_SOURCES = {
 };
 
 const CITY_CASES = [
-    { key: 'hull', name: 'Hull', theme: 'surface water flooding', center: [-0.3367, 53.7443], zoom: 10.8, areaCode: 'ta' },
-    { key: 'york', name: 'York', theme: 'river flooding', center: [-1.0827, 53.9583], zoom: 10.8, areaCode: 'se' },
-    { key: 'great-yarmouth', name: 'Great Yarmouth', theme: 'coastal flooding', center: [1.7297, 52.6080], zoom: 11.2, areaCode: 'tg' },
-    { key: 'london', name: 'London', theme: 'multiple flood sources', center: [-0.1276, 51.5072], zoom: 10.8, areaCode: 'tq' },
+    { key: 'hull', name: 'Hull', theme: 'surface water flooding', center: [-0.3367, 53.7443], zoom: 10.8, areaCode: 'ta', boundaryType: 'lad', boundaryCode: 'E06000010' },
+    { key: 'york', name: 'York', theme: 'river flooding', center: [-1.0827, 53.9583], zoom: 10.8, areaCode: 'se', boundaryType: 'lad', boundaryCode: 'E06000014' },
+    { key: 'great-yarmouth', name: 'Great Yarmouth', theme: 'coastal flooding', center: [1.7297, 52.6080], zoom: 11.2, areaCode: 'tg', boundaryType: 'lad', boundaryCode: 'E07000145' },
+    { key: 'london', name: 'London', theme: 'multiple flood sources', center: [-0.1276, 51.5072], zoom: 10.8, areaCode: 'tq', boundaryType: 'london' },
 ];
 
 const BUILDING_MIN_ZOOM = 13;
@@ -201,6 +246,7 @@ const BUILDING_COLOR_MIN_ZOOM = 14.2;
 const BUILDING_VIEW_ZOOM = BUILDING_COLOR_MIN_ZOOM;
 const BUILDING_PITCH = 50;
 const BUILDING_BEARING = -15;
+const POSTCODE_COMPARE_MIN_TRANSACTIONS = 3;
 
 const PRICE_BINS = [
     { max: 250000, color: '#313695' },
@@ -259,6 +305,7 @@ map.on('zoom', () => {
 const initialCase = nearestCityCase(map.getCenter());
 const initialAreaCode = initialCase.areaCode;
 const areaBtnsEl = document.getElementById('area-buttons');
+let currentCityCaseKey = initialCase.key;
 CITY_CASES.forEach(info => {
     const btn = document.createElement('button');
     btn.className = 'area-btn' + (info.key === initialCase.key ? ' active' : '');
@@ -268,7 +315,10 @@ CITY_CASES.forEach(info => {
     btn.onclick = () => {
         map.stop();
         map.jumpTo({ center: info.center, zoom: Math.max(info.zoom, BUILDING_VIEW_ZOOM), pitch: BUILDING_PITCH, bearing: BUILDING_BEARING });
+        currentCityCaseKey = info.key;
         updateActiveCaseButton(info.key);
+        updateBoundaryQueryFilter(info);
+        renderFloodPriceCompareEmpty('Loading the postcode HPM comparison...');
         switchAreaPriceData(info.areaCode);
     };
     areaBtnsEl.appendChild(btn);
@@ -294,6 +344,9 @@ function nearestCityCase(center) {
     });
     return bestCase;
 }
+function cityCaseByKey(caseKey) {
+    return CITY_CASES.find(info => info.key === caseKey) || CITY_CASES[0];
+}
 function updateActiveCaseButton(caseKey) {
     document.querySelectorAll('.area-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.caseKey === caseKey));
 }
@@ -304,6 +357,10 @@ function updateActiveCaseButton(caseKey) {
 let oaReady = false;
 let currentAreaCode = initialAreaCode;
 let currentAreaPriceSourceLayer = areaPriceSource(currentAreaCode).sourceLayer;
+let currentPriceDataset = 'current';
+let oaHpmLookup = new Map();
+let postcodeHpmRows = [];
+let priceDatasetLoadError = null;
 
 function removePriceLayersAndSource() {
     ['oa-price-extrusion', 'oa-price-line', 'oa-price-fill', 'oa-price-query'].forEach(id => {
@@ -318,7 +375,9 @@ function switchAreaPriceData(code) {
     removePriceLayersAndSource();
     addPriceLayers();
     oaReady = true;
+    scheduleOaHpmStateSync();
     scheduleBuildingColor();
+    scheduleFloodPriceCompare();
 }
 
 map.on('load', () => {
@@ -328,6 +387,16 @@ map.on('load', () => {
     map.addSource('flood-src', {
         type: 'vector',
         url: FLOOD_TILESET,
+    });
+
+    map.addSource('lad-boundary-src', {
+        type: 'vector',
+        url: LAD_BOUNDARY_TILESET,
+    });
+
+    map.addSource('london-boundary-src', {
+        type: 'vector',
+        url: LONDON_BOUNDARY_TILESET,
     });
 
     /* FZ3 fill */
@@ -384,6 +453,7 @@ map.on('load', () => {
 
     /* --- OA regional price tiles (Mapbox-hosted vector source) --- */
     setLoad('Connecting Mapbox regional price tiles...', 55);
+    addBoundaryQueryLayers();
     addPriceLayers();
     addBuildingLayer();
     oaReady = true;
@@ -406,7 +476,7 @@ function addPriceLayers() {
     map.addLayer({
         id: 'oa-price-query', type: 'fill', source: 'oa-price-src', 'source-layer': sourceConfig.sourceLayer,
         paint: {
-            'fill-color': PRICE_COLOR,
+            'fill-color': buildPriceColorExpression(),
             'fill-opacity': 0,
         },
     }, 'flood-fz3-fill');
@@ -415,7 +485,7 @@ function addPriceLayers() {
     map.addLayer({
         id: 'oa-price-fill', type: 'fill', source: 'oa-price-src', 'source-layer': sourceConfig.sourceLayer,
         paint: {
-            'fill-color': PRICE_COLOR,
+            'fill-color': buildPriceColorExpression(),
             'fill-opacity': ['case', ['boolean', ['feature-state', 'hover'], false], 0.85, 0.65],
             'fill-antialias': false,
         },
@@ -436,11 +506,8 @@ function addPriceLayers() {
         id: 'oa-price-extrusion', type: 'fill-extrusion', source: 'oa-price-src', 'source-layer': sourceConfig.sourceLayer,
         layout: { visibility: 'none' },
         paint: {
-            'fill-extrusion-color': PRICE_COLOR,
-            'fill-extrusion-height': [
-                'interpolate', ['linear'], ['get', 'p'],
-                100000, 10, 300000, 50, 500000, 100, 1000000, 200, 5000000, 500,
-            ],
+            'fill-extrusion-color': buildPriceColorExpression(),
+            'fill-extrusion-height': buildPriceExtrusionHeightExpression(),
             'fill-extrusion-base': 0,
             'fill-extrusion-opacity': 0.45,
         },
@@ -448,9 +515,46 @@ function addPriceLayers() {
 
     if (!priceSourceListenerBound) {
         map.on('sourcedata', e => {
-            if (e.sourceId === 'oa-price-src' && e.isSourceLoaded) scheduleBuildingColor();
+            if ((e.sourceId === 'oa-price-src' || e.sourceId === 'lad-boundary-src' || e.sourceId === 'london-boundary-src') && e.isSourceLoaded) {
+                scheduleOaHpmStateSync();
+                scheduleBuildingColor();
+                scheduleFloodPriceCompare();
+            }
         });
         priceSourceListenerBound = true;
+    }
+}
+
+function addBoundaryQueryLayers() {
+    map.addLayer({
+        id: 'city-boundary-lad-query', type: 'fill', source: 'lad-boundary-src', 'source-layer': LAD_BOUNDARY_SOURCE_LAYER,
+        filter: ['==', ['get', 'LAD21CD'], '__none__'],
+        paint: {
+            'fill-color': '#000000',
+            'fill-opacity': 0,
+        },
+    });
+
+    map.addLayer({
+        id: 'city-boundary-london-query', type: 'fill', source: 'london-boundary-src', 'source-layer': LONDON_BOUNDARY_SOURCE_LAYER,
+        filter: ['==', ['get', 'NAME'], '__none__'],
+        paint: {
+            'fill-color': '#000000',
+            'fill-opacity': 0,
+        },
+    });
+
+    updateBoundaryQueryFilter(cityCaseByKey(currentCityCaseKey));
+}
+
+function updateBoundaryQueryFilter(cityCase) {
+    if (!map.getLayer('city-boundary-lad-query') || !map.getLayer('city-boundary-london-query')) return;
+    if (cityCase.boundaryType === 'lad') {
+        map.setFilter('city-boundary-lad-query', ['==', ['get', 'LAD21CD'], cityCase.boundaryCode]);
+        map.setFilter('city-boundary-london-query', ['==', ['get', 'NAME'], '__none__']);
+    } else {
+        map.setFilter('city-boundary-lad-query', ['==', ['get', 'LAD21CD'], '__none__']);
+        map.setFilter('city-boundary-london-query', ['!=', ['get', 'NAME'], '__none__']);
     }
 }
 
@@ -482,13 +586,31 @@ function addBuildingLayer() {
    RUNTIME BUILDING COLORING BY OA PRICE
    ============================================================ */
 let colorTimer = null;
+let compareTimer = null;
+let oaStateTimer = null;
 let bldgColorEnabled = true;
 let buildingHeightScale = 1;
 let priceSourceListenerBound = false;
+const compareTitleEl = document.getElementById('compare-title');
+const compareSubtitleEl = document.getElementById('compare-subtitle');
+const compareSummaryEl = document.getElementById('compare-summary');
+const compareBarsEl = document.getElementById('compare-bars');
+const priceModeButtons = Array.from(document.querySelectorAll('[data-price-mode]'));
+const priceModeStatusEl = document.getElementById('price-mode-status');
 
 function scheduleBuildingColor() {
     clearTimeout(colorTimer);
     colorTimer = setTimeout(colorBuildingsByOA, 400);
+}
+
+function scheduleFloodPriceCompare() {
+    clearTimeout(compareTimer);
+    compareTimer = setTimeout(updateFloodPriceCompare, 450);
+}
+
+function scheduleOaHpmStateSync() {
+    clearTimeout(oaStateTimer);
+    oaStateTimer = setTimeout(syncVisibleOaHpmStates, 250);
 }
 
 function resetBuildingColor() {
@@ -518,6 +640,368 @@ function featureCentroid(feature) {
     let cx = 0, cy = 0;
     for (const pt of ring) { cx += pt[0]; cy += pt[1]; }
     return [cx / ring.length, cy / ring.length];
+}
+
+function geometryPolygons(geometry) {
+    if (!geometry || !geometry.coordinates) return [];
+    if (geometry.type === 'Polygon') return [geometry.coordinates];
+    if (geometry.type === 'MultiPolygon') return geometry.coordinates;
+    return [];
+}
+
+function pointInRing(point, ring) {
+    let inside = false;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+        const xi = ring[i][0];
+        const yi = ring[i][1];
+        const xj = ring[j][0];
+        const yj = ring[j][1];
+        const intersects = ((yi > point[1]) !== (yj > point[1])) &&
+            (point[0] < ((xj - xi) * (point[1] - yi)) / Math.max(yj - yi, 1e-12) + xi);
+        if (intersects) inside = !inside;
+    }
+    return inside;
+}
+
+function pointInFloodGeometry(point, geometry) {
+    const polygons = geometryPolygons(geometry);
+    for (const polygon of polygons) {
+        if (!polygon.length) continue;
+        if (!pointInRing(point, polygon[0])) continue;
+        let inHole = false;
+        for (let i = 1; i < polygon.length; i++) {
+            if (pointInRing(point, polygon[i])) {
+                inHole = true;
+                break;
+            }
+        }
+        if (!inHole) return true;
+    }
+    return false;
+}
+
+function formatCompactCurrency(value) {
+    if (!Number.isFinite(value)) return '-';
+    if (value >= 1e6) return 'GBP ' + (value / 1e6).toFixed(2) + 'M';
+    return 'GBP ' + Math.round(value / 1000).toLocaleString('en-GB') + 'k';
+}
+
+function formatCompactPricePerSqm(value) {
+    if (!Number.isFinite(value)) return '-';
+    return 'GBP ' + Math.round(value).toLocaleString('en-GB') + '/sqm';
+}
+
+function parseNumber(value) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : NaN;
+}
+
+function parseCsv(text) {
+    const rows = [];
+    let row = [];
+    let cell = '';
+    let inQuotes = false;
+
+    for (let index = 0; index < text.length; index++) {
+        const char = text[index];
+        if (char === '"') {
+            if (inQuotes && text[index + 1] === '"') {
+                cell += '"';
+                index += 1;
+            } else {
+                inQuotes = !inQuotes;
+            }
+        } else if (char === ',' && !inQuotes) {
+            row.push(cell);
+            cell = '';
+        } else if ((char === '\n' || char === '\r') && !inQuotes) {
+            if (char === '\r' && text[index + 1] === '\n') index += 1;
+            row.push(cell);
+            if (row.some(value => value !== '')) rows.push(row);
+            row = [];
+            cell = '';
+        } else {
+            cell += char;
+        }
+    }
+
+    if (cell.length || row.length) {
+        row.push(cell);
+        if (row.some(value => value !== '')) rows.push(row);
+    }
+    if (!rows.length) return [];
+
+    const headers = rows[0].map(value => value.trim());
+    return rows.slice(1).map(values => {
+        const record = {};
+        headers.forEach((header, idx) => {
+            record[header] = (values[idx] || '').trim();
+        });
+        return record;
+    });
+}
+
+async function fetchCsvRows(url) {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('HTTP ' + response.status + ' for ' + url);
+    return parseCsv(await response.text());
+}
+
+function setPriceModeStatus(message) {
+    priceModeStatusEl.textContent = message;
+}
+
+function updatePriceModeButtons() {
+    priceModeButtons.forEach(button => {
+        button.classList.toggle('active', button.dataset.priceMode === currentPriceDataset);
+    });
+}
+
+function activeOaPriceExpression() {
+    return currentPriceDataset === 'hpm'
+        ? ['coalesce', ['feature-state', 'hpmAvgPrice'], ['get', 'p']]
+        : ['get', 'p'];
+}
+
+function buildPriceColorExpression() {
+    return ['step', activeOaPriceExpression(), PRICE_BINS[0].color, ...PRICE_STEP_STOPS];
+}
+
+function buildPriceExtrusionHeightExpression() {
+    return [
+        'interpolate', ['linear'], activeOaPriceExpression(),
+        100000, 10, 300000, 50, 500000, 100, 1000000, 200, 5000000, 500,
+    ];
+}
+
+function refreshOaPricePresentation() {
+    if (!map.getLayer('oa-price-fill')) return;
+    const colorExpr = buildPriceColorExpression();
+    map.setPaintProperty('oa-price-query', 'fill-color', colorExpr);
+    map.setPaintProperty('oa-price-fill', 'fill-color', colorExpr);
+    map.setPaintProperty('oa-price-extrusion', 'fill-extrusion-color', colorExpr);
+    map.setPaintProperty('oa-price-extrusion', 'fill-extrusion-height', buildPriceExtrusionHeightExpression());
+}
+
+function setPriceDatasetMode(mode) {
+    if (mode === currentPriceDataset) return;
+    if (mode === 'hpm' && !oaHpmLookup.size) {
+        setPriceModeStatus(priceDatasetLoadError
+            ? 'GitHub raw OA HPM CSV failed to load, so only the current OA version is available.'
+            : 'Loading GitHub raw OA HPM CSV...');
+        return;
+    }
+    currentPriceDataset = mode;
+    updatePriceModeButtons();
+    refreshOaPricePresentation();
+    scheduleOaHpmStateSync();
+    scheduleBuildingColor();
+}
+
+function syncVisibleOaHpmStates() {
+    if (!oaHpmLookup.size || !map.getSource('oa-price-src')) return;
+
+    const sourceFeatures = map.querySourceFeatures('oa-price-src', {
+        sourceLayer: currentAreaPriceSourceLayer,
+    });
+    const seen = new Set();
+
+    for (const feature of sourceFeatures) {
+        const oaCode = feature.properties && feature.properties.c;
+        if (!oaCode || seen.has(oaCode)) continue;
+        seen.add(oaCode);
+
+        const hpmRow = oaHpmLookup.get(oaCode);
+        if (!hpmRow) continue;
+
+        map.setFeatureState({
+            source: 'oa-price-src',
+            sourceLayer: currentAreaPriceSourceLayer,
+            id: oaCode,
+        }, {
+            hpmAvgPrice: hpmRow.avgPrice,
+            hpmTransactions: hpmRow.transactions,
+        });
+    }
+
+    if (currentPriceDataset === 'hpm') refreshOaPricePresentation();
+}
+
+function getOaMetricForFeature(feature) {
+    const fallbackPrice = Number(feature.properties && feature.properties.p);
+    const fallbackTransactions = Math.max(1, Number(feature.properties && feature.properties.d) || 1);
+    if (currentPriceDataset !== 'hpm' || feature.id === undefined) {
+        return {
+            price: fallbackPrice,
+            transactions: fallbackTransactions,
+            priceLabel: 'Avg Price',
+            datasetLabel: 'Current OA dataset',
+        };
+    }
+
+    const state = map.getFeatureState(oaFeatureTarget(feature.id));
+    const hpmPrice = Number(state.hpmAvgPrice);
+    const hpmTransactions = Math.max(1, Number(state.hpmTransactions) || fallbackTransactions);
+    if (!Number.isFinite(hpmPrice)) {
+        return {
+            price: fallbackPrice,
+            transactions: fallbackTransactions,
+            priceLabel: 'Avg Price',
+            datasetLabel: 'Current OA dataset',
+        };
+    }
+
+    return {
+        price: hpmPrice,
+        transactions: hpmTransactions,
+        priceLabel: 'HPM Avg Price',
+        datasetLabel: 'OA HPM dataset',
+    };
+}
+
+async function loadRemotePriceData() {
+    setPriceModeStatus('Loading GitHub raw OA and postcode HPM CSVs...');
+    try {
+        const [oaRows, postcodeRows] = await Promise.all([
+            fetchCsvRows(OA_HPM_CSV_URL),
+            fetchCsvRows(POSTCODE_HPM_CSV_URL),
+        ]);
+
+        oaHpmLookup = new Map(
+            oaRows
+                .map(row => [row.oa21cd, {
+                    avgPrice: parseNumber(row.oa_avg_price),
+                    transactions: parseNumber(row.transaction_count),
+                }])
+                .filter(([, value]) => Number.isFinite(value.avgPrice))
+        );
+
+        postcodeHpmRows = postcodeRows
+            .map(row => ({
+                ladcd: row.ladcd,
+                lon: parseNumber(row.lon),
+                lat: parseNumber(row.lat),
+                medianPricePerSqm: parseNumber(row.median_priceper),
+                transactions: parseNumber(row.transaction_count),
+            }))
+            .filter(row => Number.isFinite(row.lon)
+                && Number.isFinite(row.lat)
+                && Number.isFinite(row.medianPricePerSqm)
+                && Number.isFinite(row.transactions)
+                && row.transactions >= POSTCODE_COMPARE_MIN_TRANSACTIONS);
+
+        priceDatasetLoadError = null;
+        setPriceModeStatus('Map: switch between current OA avg price and OA HPM avg price. Compare: postcode HPM median GBP/sqm (transactions >= 3).');
+        scheduleOaHpmStateSync();
+        scheduleFloodPriceCompare();
+    } catch (error) {
+        priceDatasetLoadError = error;
+        console.error('Failed to load GitHub raw HPM CSVs.', error);
+        setPriceModeStatus('GitHub raw HPM CSV load failed. Current OA remains available.');
+        scheduleFloodPriceCompare();
+    }
+}
+
+function renderFloodPriceCompareEmpty(summary) {
+    const cityCase = cityCaseByKey(currentCityCaseKey);
+    compareTitleEl.textContent = cityCase.name;
+    compareSubtitleEl.textContent = cityCase.theme + ' · postcode HPM median GBP/sqm';
+    compareSummaryEl.textContent = summary;
+    compareBarsEl.innerHTML = '<div class="compare-empty">No comparable postcode groups found for the selected city preset.</div>';
+}
+
+function renderFloodPriceCompare(stats) {
+    const cityCase = cityCaseByKey(currentCityCaseKey);
+    compareTitleEl.textContent = cityCase.name;
+    compareSubtitleEl.textContent = cityCase.theme + ' · postcode HPM median GBP/sqm';
+    compareSummaryEl.textContent = stats.summary;
+
+    const maxAvg = Math.max(stats.inside.avg, stats.outside.avg, 1);
+    const insideWidth = Math.max(6, (stats.inside.avg / maxAvg) * 100);
+    const outsideWidth = Math.max(6, (stats.outside.avg / maxAvg) * 100);
+
+    compareBarsEl.innerHTML = [
+        '<div class="compare-row">' +
+            '<div class="compare-row-head"><span><strong>Inside flood zone</strong> · ' + stats.inside.count + ' postcode</span><span>' + formatCompactPricePerSqm(stats.inside.avg) + '</span></div>' +
+            '<div class="compare-bar-track"><div class="compare-bar-fill in" style="width:' + insideWidth + '%"></div></div>' +
+        '</div>',
+        '<div class="compare-row">' +
+            '<div class="compare-row-head"><span><strong>Outside flood zone</strong> · ' + stats.outside.count + ' postcode</span><span>' + formatCompactPricePerSqm(stats.outside.avg) + '</span></div>' +
+            '<div class="compare-bar-track"><div class="compare-bar-fill out" style="width:' + outsideWidth + '%"></div></div>' +
+        '</div>'
+    ].join('');
+}
+
+function updateFloodPriceCompare() {
+    if (!postcodeHpmRows.length) {
+        renderFloodPriceCompareEmpty(priceDatasetLoadError
+            ? 'GitHub raw postcode HPM CSV failed to load.'
+            : 'Waiting for postcode HPM data from GitHub raw CSV.');
+        return;
+    }
+
+    const cityCase = cityCaseByKey(currentCityCaseKey);
+    const selectedZones = [];
+    if (document.getElementById('chk-fz2').checked) selectedZones.push('FZ2');
+    if (document.getElementById('chk-fz3').checked) selectedZones.push('FZ3');
+    if (!selectedZones.length) {
+        renderFloodPriceCompareEmpty('Select Flood Zone 2 and/or Flood Zone 3 to run the postcode comparison.');
+        return;
+    }
+
+    const boundaryFeatures = cityCase.boundaryType === 'london'
+        ? map.querySourceFeatures('london-boundary-src', {
+            sourceLayer: LONDON_BOUNDARY_SOURCE_LAYER,
+        })
+        : [];
+    const floodFeatures = map.querySourceFeatures('flood-src', {
+        sourceLayer: 'flood_uk_simplified',
+        filter: ['in', ['get', 'flood_zone'], ['literal', selectedZones]],
+    });
+    if ((cityCase.boundaryType === 'london' && !boundaryFeatures.length) || !floodFeatures.length) {
+        renderFloodPriceCompareEmpty('Waiting for the selected city boundary and flood layers to load.');
+        return;
+    }
+
+    const boundaryGeometries = boundaryFeatures.map(feature => feature.geometry).filter(Boolean);
+    const floodGeometries = floodFeatures.map(feature => feature.geometry).filter(Boolean);
+    let insidePriceSum = 0;
+    let insideWeightSum = 0;
+    let insidePostcodeCount = 0;
+    let outsidePriceSum = 0;
+    let outsideWeightSum = 0;
+    let outsidePostcodeCount = 0;
+
+    for (const row of postcodeHpmRows) {
+        if (cityCase.boundaryType === 'lad' && row.ladcd !== cityCase.boundaryCode) continue;
+
+        const point = [row.lon, row.lat];
+        if (cityCase.boundaryType === 'london' && !boundaryGeometries.some(geometry => pointInFloodGeometry(point, geometry))) continue;
+
+        const inside = floodGeometries.some(geometry => pointInFloodGeometry(point, geometry));
+        if (inside) {
+            insidePriceSum += row.medianPricePerSqm * row.transactions;
+            insideWeightSum += row.transactions;
+            insidePostcodeCount += 1;
+        } else {
+            outsidePriceSum += row.medianPricePerSqm * row.transactions;
+            outsideWeightSum += row.transactions;
+            outsidePostcodeCount += 1;
+        }
+    }
+
+    if (!insidePostcodeCount || !outsidePostcodeCount) {
+        renderFloodPriceCompareEmpty('The selected city boundary does not contain enough postcode groups on both sides of the flood boundary.');
+        return;
+    }
+
+    renderFloodPriceCompare({
+        inside: { avg: insidePriceSum / insideWeightSum, count: insidePostcodeCount },
+        outside: { avg: outsidePriceSum / outsideWeightSum, count: outsidePostcodeCount },
+        summary: 'Weighted by transaction counts across ' + (insidePostcodeCount + outsidePostcodeCount)
+            + ' postcode groups inside the selected city boundary using postcode HPM median GBP/sqm (transactions >= '
+            + POSTCODE_COMPARE_MIN_TRANSACTIONS + ').',
+    });
 }
 
 function dedupeBuildings(features) {
@@ -553,7 +1037,7 @@ function colorBuildingsByOA() {
         const id = f.properties && f.properties.c;
         if (seen.has(id)) continue;
         const center = featureCentroid(f);
-        const price = Number(f.properties && f.properties.p);
+        const price = getOaMetricForFeature(f).price;
         if (!id || !center || !Number.isFinite(price)) continue;
         seen.add(id);
         oaLookup.push({ p: price, cx: center[0], cy: center[1] });
@@ -615,7 +1099,11 @@ function colorBuildingsByOA() {
     map.setPaintProperty('3d-buildings', 'fill-extrusion-opacity', 0.08);
 }
 
-map.on('moveend', scheduleBuildingColor);
+map.on('moveend', () => {
+    scheduleOaHpmStateSync();
+    scheduleBuildingColor();
+});
+renderFloodPriceCompareEmpty('Loading the postcode HPM comparison...');
 
 /* ============================================================
    INTERACTIVITY
@@ -632,12 +1120,14 @@ map.on('click', e => {
     let html = '';
     if (oaF.length) {
         const p = oaF[0].properties;
-        const fmt = p.p >= 1e6 ? '\u00A3' + (p.p / 1e6).toFixed(2) + 'M' : '\u00A3' + (p.p / 1000).toFixed(0) + 'k';
+           const metric = getOaMetricForFeature(oaF[0]);
+           const fmt = metric.price >= 1e6 ? '\u00A3' + (metric.price / 1e6).toFixed(2) + 'M' : '\u00A3' + (metric.price / 1000).toFixed(0) + 'k';
         html += '<div class="popup-title">Output Area</div>'
              +  '<div class="popup-row"><span class="label">OA Code</span><span class="value">' + p.c + '</span></div>'
-             +  '<div class="popup-price" style="color:' + priceHex(p.p) + '">' + fmt + '</div>'
-             +  '<div class="popup-row"><span class="label">Avg Price</span><span class="value">\u00A3' + Number(p.p).toLocaleString('en-GB') + '</span></div>'
-             +  '<div class="popup-row"><span class="label">Transactions</span><span class="value">' + p.d + '</span></div>';
+               +  '<div class="popup-price" style="color:' + priceHex(metric.price) + '">' + fmt + '</div>'
+               +  '<div class="popup-row"><span class="label">Dataset</span><span class="value">' + metric.datasetLabel + '</span></div>'
+               +  '<div class="popup-row"><span class="label">' + metric.priceLabel + '</span><span class="value">\u00A3' + Math.round(metric.price).toLocaleString('en-GB') + '</span></div>'
+               +  '<div class="popup-row"><span class="label">Transactions</span><span class="value">' + metric.transactions + '</span></div>';
     }
     if (flF.length) {
         if (html) html += '<hr style="border:0;border-top:1px solid rgba(148,163,184,.15);margin:10px 0">';
@@ -671,8 +1161,8 @@ map.on('mousemove', 'oa-price-fill', e => {
     hovId = f.id;
     map.setFeatureState(oaFeatureTarget(hovId), { hover: true });
 
-    const p = f.properties.p;
-    const fmt = p >= 1e6 ? '\u00A3' + (p/1e6).toFixed(1) + 'M' : '\u00A3' + (p/1000).toFixed(0) + 'k';
+    const metric = getOaMetricForFeature(f);
+    const fmt = metric.price >= 1e6 ? '\u00A3' + (metric.price/1e6).toFixed(1) + 'M' : '\u00A3' + (metric.price/1000).toFixed(0) + 'k';
     tooltip.innerHTML = '<b>' + f.properties.c + '</b> &middot; ' + fmt;
     tooltip.style.display = 'block';
     tooltip.style.left = e.point.x + 'px';
@@ -713,8 +1203,18 @@ document.getElementById('chk-bldg-color').onchange = e => {
     else resetBuildingColor();
 };
 document.getElementById('chk-price-3d').onchange = e => toggleVis(['oa-price-extrusion'], e.target.checked);
-document.getElementById('chk-fz2').onchange = e => toggleVis(['flood-fz2-fill','flood-fz2-line'], e.target.checked);
-document.getElementById('chk-fz3').onchange = e => toggleVis(['flood-fz3-fill','flood-fz3-line'], e.target.checked);
+document.getElementById('chk-fz2').onchange = e => {
+    toggleVis(['flood-fz2-fill','flood-fz2-line'], e.target.checked);
+    scheduleFloodPriceCompare();
+};
+document.getElementById('chk-fz3').onchange = e => {
+    toggleVis(['flood-fz3-fill','flood-fz3-line'], e.target.checked);
+    scheduleFloodPriceCompare();
+};
+
+priceModeButtons.forEach(button => {
+    button.onclick = () => setPriceDatasetMode(button.dataset.priceMode);
+});
 
 document.getElementById('flood-opacity').oninput = e => {
     const v = e.target.value / 100;
@@ -738,6 +1238,8 @@ document.getElementById('building-height').oninput = e => {
     }
     if (bldgColorEnabled) scheduleBuildingColor();
 };
+
+loadRemotePriceData();
 </script>
 </body>
 </html>
