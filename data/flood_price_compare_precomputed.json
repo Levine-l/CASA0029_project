@@ -1,0 +1,183 @@
+{
+  "generated_at": "2026-04-24T18:31:30.481801+00:00",
+  "min_transactions": 3,
+  "metric": "postcode HPM median GBP/sqm, weighted by transaction_count",
+  "cities": {
+    "hull": {
+      "name": "Hull",
+      "theme": "surface water flooding",
+      "postcode_count": 3917,
+      "flood_source": "/content/flood_uk.mbtiles",
+      "zones": {
+        "FZ2": {
+          "inside": {
+            "avg": 1413.648367174807,
+            "count": 31,
+            "weight": 1029
+          },
+          "outside": {
+            "avg": 1122.6766037737204,
+            "count": 3886,
+            "weight": 89213
+          }
+        },
+        "FZ3": {
+          "inside": {
+            "avg": 1105.4343159457785,
+            "count": 3392,
+            "weight": 78642
+          },
+          "outside": {
+            "avg": 1265.3815989379216,
+            "count": 525,
+            "weight": 11600
+          }
+        },
+        "FZ2+FZ3": {
+          "inside": {
+            "avg": 1107.0719062826076,
+            "count": 3410,
+            "weight": 79231
+          },
+          "outside": {
+            "avg": 1262.1540110444555,
+            "count": 507,
+            "weight": 11011
+          }
+        }
+      }
+    },
+    "york": {
+      "name": "York",
+      "theme": "river flooding",
+      "postcode_count": 3869,
+      "flood_source": "/content/flood_uk.mbtiles",
+      "zones": {
+        "FZ2": {
+          "inside": {
+            "avg": 2229.106006508855,
+            "count": 159,
+            "weight": 3534
+          },
+          "outside": {
+            "avg": 2273.095623827074,
+            "count": 3710,
+            "weight": 82598
+          }
+        },
+        "FZ3": {
+          "inside": {
+            "avg": 2483.2968675736356,
+            "count": 146,
+            "weight": 4164
+          },
+          "outside": {
+            "avg": 2260.5207496497947,
+            "count": 3723,
+            "weight": 81968
+          }
+        },
+        "FZ2+FZ3": {
+          "inside": {
+            "avg": 2362.059010226992,
+            "count": 293,
+            "weight": 7498
+          },
+          "outside": {
+            "avg": 2262.63568564729,
+            "count": 3576,
+            "weight": 78634
+          }
+        }
+      }
+    },
+    "great-yarmouth": {
+      "name": "Great Yarmouth",
+      "theme": "coastal flooding",
+      "postcode_count": 1948,
+      "flood_source": "/content/flood_uk.mbtiles",
+      "zones": {
+        "FZ2": {
+          "inside": {
+            "avg": 1170.583092217474,
+            "count": 80,
+            "weight": 1365
+          },
+          "outside": {
+            "avg": 1604.8761965516799,
+            "count": 1868,
+            "weight": 39811
+          }
+        },
+        "FZ3": {
+          "inside": {
+            "avg": 1244.8853008950573,
+            "count": 344,
+            "weight": 7928
+          },
+          "outside": {
+            "avg": 1672.8862342486693,
+            "count": 1604,
+            "weight": 33248
+          }
+        },
+        "FZ2+FZ3": {
+          "inside": {
+            "avg": 1232.7251360027822,
+            "count": 414,
+            "weight": 9200
+          },
+          "outside": {
+            "avg": 1693.4107121144036,
+            "count": 1534,
+            "weight": 31976
+          }
+        }
+      }
+    },
+    "london": {
+      "name": "London",
+      "theme": "multiple flood sources",
+      "postcode_count": 118668,
+      "flood_source": "/content/flood_uk.mbtiles",
+      "zones": {
+        "FZ2": {
+          "inside": {
+            "avg": 3815.886320750008,
+            "count": 3406,
+            "weight": 89892
+          },
+          "outside": {
+            "avg": 4038.2545077131817,
+            "count": 115262,
+            "weight": 2697996
+          }
+        },
+        "FZ3": {
+          "inside": {
+            "avg": 4859.947339462231,
+            "count": 11406,
+            "weight": 312633
+          },
+          "outside": {
+            "avg": 3926.3963694079594,
+            "count": 107262,
+            "weight": 2475255
+          }
+        },
+        "FZ2+FZ3": {
+          "inside": {
+            "avg": 4638.59178201411,
+            "count": 14376,
+            "weight": 390590
+          },
+          "outside": {
+            "avg": 3932.103809288666,
+            "count": 104292,
+            "weight": 2397298
+          }
+        }
+      }
+    }
+  }
+}
