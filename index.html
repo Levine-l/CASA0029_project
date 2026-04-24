@@ -39,13 +39,28 @@
         .panel .slider-group span { font-size: 12px; color: #94a3b8; }
         .panel input[type="range"] { width: 100%; accent-color: #3b82f6; margin-top: 4px; }
 
+        .right-stack {
+            position: absolute; right: 16px; bottom: 36px; z-index: 5;
+            width: 260px; max-height: calc(100vh - 90px);
+            display: grid; gap: 10px; overflow-y: auto;
+        }
+        .right-stack::-webkit-scrollbar { width: 4px; }
+        .right-stack::-webkit-scrollbar-thumb { background: rgba(148,163,184,.3); border-radius: 2px; }
         .legend {
-            position: absolute; bottom: 36px; right: 16px; z-index: 5;
             background: rgba(15,23,42,.9); backdrop-filter: blur(12px);
-            border-radius: 12px; padding: 16px; width: 220px;
+            border-radius: 12px; padding: 14px 16px; width: 100%;
             border: 1px solid rgba(148,163,184,.12); color: #e2e8f0;
         }
-        .legend h3 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .8px; color: #94a3b8; margin-bottom: 10px; }
+        .legend-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+        .legend h3 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .8px; color: #94a3b8; margin: 0; }
+        .legend-toggle {
+            width: 28px; height: 28px; border-radius: 6px;
+            border: 1px solid rgba(148,163,184,.2); background: rgba(30,41,59,.6);
+            color: #cbd5e1; cursor: pointer; font-size: 18px; line-height: 1;
+        }
+        .legend-toggle:hover { background: rgba(59,130,246,.2); color: #93c5fd; border-color: rgba(59,130,246,.4); }
+        .legend-content { margin-top: 10px; }
+        .legend.collapsed .legend-content { display: none; }
         .legend-row { display: flex; align-items: center; gap: 8px; font-size: 12px; padding: 3px 0; }
         .legend-swatch { width: 24px; height: 14px; border-radius: 3px; flex-shrink: 0; }
         .legend .section-title { font-size: 12px; font-weight: 600; color: #cbd5e1; margin-top: 10px; margin-bottom: 4px; }
@@ -93,8 +108,24 @@
             background: rgba(30,41,59,.55);
             border: 1px solid rgba(148,163,184,.12);
         }
+        .right-stack .compare-card {
+            margin-top: 0; background: rgba(15,23,42,.9); backdrop-filter: blur(12px);
+            border-radius: 12px; padding: 14px 16px; color: #e2e8f0;
+        }
         .compare-title { font-size: 12px; font-weight: 600; color: #e2e8f0; }
         .compare-subtitle { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+        .compare-zone-tabs {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px;
+            margin-top: 10px; padding: 3px; border-radius: 8px;
+            background: rgba(15,23,42,.75); border: 1px solid rgba(148,163,184,.12);
+        }
+        .compare-zone-btn {
+            min-height: 26px; border: 0; border-radius: 6px;
+            background: transparent; color: #94a3b8; cursor: pointer;
+            font-size: 11px; font-weight: 600;
+        }
+        .compare-zone-btn:hover { color: #93c5fd; background: rgba(59,130,246,.14); }
+        .compare-zone-btn.active { color: #f8fafc; background: rgba(59,130,246,.36); }
         .compare-summary { font-size: 11px; color: #cbd5e1; margin-top: 8px; line-height: 1.45; }
         .compare-bars { margin-top: 10px; display: grid; gap: 8px; }
         .compare-row { display: grid; gap: 4px; }
@@ -111,6 +142,12 @@
             border: 1px solid rgba(148,163,184,.15); border-radius: 8px; padding: 8px 12px;
             color: #e2e8f0; font-size: 12px; pointer-events: none;
             transform: translate(-50%, -100%); margin-top: -12px; white-space: nowrap; display: none;
+        }
+        @media (max-width: 760px) {
+            .right-stack {
+                left: 16px; right: 16px; bottom: 24px; width: auto;
+                max-height: 45vh;
+            }
         }
     </style>
 </head>
@@ -173,39 +210,49 @@
         <button class="area-btn" data-price-mode="hpm">OA HPM</button>
     </div>
     <div class="panel-note" id="price-mode-status">Map: current OA avg price. Compare: postcode HPM median GBP/sqm.</div>
+</div>
 
-    <div class="divider"></div>
-    <h3>Flood Price Compare</h3>
+<div class="right-stack">
     <div class="compare-card">
         <div class="compare-title" id="compare-title">Current city case</div>
         <div class="compare-subtitle" id="compare-subtitle">Postcode HPM median GBP/sqm</div>
+        <div class="compare-zone-tabs" id="compare-zone-tabs" role="tablist" aria-label="Flood zone comparison">
+            <button class="compare-zone-btn active" type="button" data-compare-zone="FZ2+FZ3">All</button>
+            <button class="compare-zone-btn" type="button" data-compare-zone="FZ2">Zone 2</button>
+            <button class="compare-zone-btn" type="button" data-compare-zone="FZ3">Zone 3</button>
+        </div>
         <div class="compare-summary" id="compare-summary">Jump to a city case to compare postcode HPM prices inside and outside flood zones.</div>
         <div class="compare-bars" id="compare-bars"></div>
     </div>
-</div>
 
-<div class="legend">
-    <h3>Legend</h3>
-    <div class="section-title">Average Property Price (&pound;)</div>
-    <div class="legend-row"><div class="legend-swatch" style="background:#313695"></div><span>&lt; &pound;250k</span></div>
-    <div class="legend-row"><div class="legend-swatch" style="background:#4575b4"></div><span>&pound;250k &ndash; &pound;350k</span></div>
-    <div class="legend-row"><div class="legend-swatch" style="background:#74add1"></div><span>&pound;350k &ndash; &pound;450k</span></div>
-    <div class="legend-row"><div class="legend-swatch" style="background:#abd9e9"></div><span>&pound;450k &ndash; &pound;550k</span></div>
-    <div class="legend-row"><div class="legend-swatch" style="background:#e0f3f8"></div><span>&pound;550k &ndash; &pound;650k</span></div>
-    <div class="legend-row"><div class="legend-swatch" style="background:#fee090"></div><span>&pound;650k &ndash; &pound;800k</span></div>
-    <div class="legend-row"><div class="legend-swatch" style="background:#fdae61"></div><span>&pound;800k &ndash; &pound;1.0M</span></div>
-    <div class="legend-row"><div class="legend-swatch" style="background:#f46d43"></div><span>&pound;1.0M &ndash; &pound;1.25M</span></div>
-    <div class="legend-row"><div class="legend-swatch" style="background:#d73027"></div><span>&pound;1.25M &ndash; &pound;1.75M</span></div>
-    <div class="legend-row"><div class="legend-swatch" style="background:#a50026"></div><span>&ge; &pound;1.75M</span></div>
+    <div class="legend" id="legend">
+        <div class="legend-header">
+            <h3>Legend</h3>
+            <button class="legend-toggle" id="legend-toggle" type="button" aria-expanded="true" aria-controls="legend-content" title="Collapse legend">-</button>
+        </div>
+        <div class="legend-content" id="legend-content">
+            <div class="section-title">Average Property Price (&pound;)</div>
+            <div class="legend-row"><div class="legend-swatch" style="background:#313695"></div><span>&lt; &pound;250k</span></div>
+            <div class="legend-row"><div class="legend-swatch" style="background:#4575b4"></div><span>&pound;250k &ndash; &pound;350k</span></div>
+            <div class="legend-row"><div class="legend-swatch" style="background:#74add1"></div><span>&pound;350k &ndash; &pound;450k</span></div>
+            <div class="legend-row"><div class="legend-swatch" style="background:#abd9e9"></div><span>&pound;450k &ndash; &pound;550k</span></div>
+            <div class="legend-row"><div class="legend-swatch" style="background:#e0f3f8"></div><span>&pound;550k &ndash; &pound;650k</span></div>
+            <div class="legend-row"><div class="legend-swatch" style="background:#fee090"></div><span>&pound;650k &ndash; &pound;800k</span></div>
+            <div class="legend-row"><div class="legend-swatch" style="background:#fdae61"></div><span>&pound;800k &ndash; &pound;1.0M</span></div>
+            <div class="legend-row"><div class="legend-swatch" style="background:#f46d43"></div><span>&pound;1.0M &ndash; &pound;1.25M</span></div>
+            <div class="legend-row"><div class="legend-swatch" style="background:#d73027"></div><span>&pound;1.25M &ndash; &pound;1.75M</span></div>
+            <div class="legend-row"><div class="legend-swatch" style="background:#a50026"></div><span>&ge; &pound;1.75M</span></div>
 
-    <div class="section-title" style="margin-top:14px">Flood Zones</div>
-    <div class="legend-row"><div class="legend-swatch" style="background:rgba(250,204,21,.56);border:1px solid rgba(250,204,21,.9)"></div><span>Zone 2 &mdash; Medium probability</span></div>
-    <div class="legend-row"><div class="legend-swatch" style="background:rgba(248,113,113,.56);border:1px solid rgba(248,113,113,.92)"></div><span>Zone 3 &mdash; High probability</span></div>
+            <div class="section-title" style="margin-top:14px">Flood Zones</div>
+            <div class="legend-row"><div class="legend-swatch" style="background:rgba(250,204,21,.56);border:1px solid rgba(250,204,21,.9)"></div><span>Zone 2 &mdash; Medium probability</span></div>
+            <div class="legend-row"><div class="legend-swatch" style="background:rgba(248,113,113,.56);border:1px solid rgba(248,113,113,.92)"></div><span>Zone 3 &mdash; High probability</span></div>
 
-    <div class="section-title" style="margin-top:14px">Flood Source</div>
-    <div class="legend-row"><div class="legend-swatch" style="background:rgba(56,189,248,.42);border:1px solid rgba(56,189,248,.82)"></div><span>River</span></div>
-    <div class="legend-row"><div class="legend-swatch" style="background:rgba(34,211,238,.42);border:1px solid rgba(34,211,238,.82)"></div><span>Sea / Tidal</span></div>
-    <div class="legend-row"><div class="legend-swatch" style="background:rgba(167,139,250,.42);border:1px solid rgba(167,139,250,.82)"></div><span>River &amp; Sea</span></div>
+            <div class="section-title" style="margin-top:14px">Flood Source</div>
+            <div class="legend-row"><div class="legend-swatch" style="background:rgba(56,189,248,.42);border:1px solid rgba(56,189,248,.82)"></div><span>River</span></div>
+            <div class="legend-row"><div class="legend-swatch" style="background:rgba(34,211,238,.42);border:1px solid rgba(34,211,238,.82)"></div><span>Sea / Tidal</span></div>
+            <div class="legend-row"><div class="legend-swatch" style="background:rgba(167,139,250,.42);border:1px solid rgba(167,139,250,.82)"></div><span>River &amp; Sea</span></div>
+        </div>
+    </div>
 </div>
 
 <div class="hover-tooltip" id="tooltip"></div>
@@ -222,8 +269,15 @@ const LONDON_BOUNDARY_TILESET = 'mapbox://levineliu.0jgmqqaj';
 const LAD_BOUNDARY_SOURCE_LAYER = 'LAD_Dec_2021_GB_BFC_2022_-428-bj5i72';
 const LONDON_BOUNDARY_SOURCE_LAYER = 'gla-acxdsb';
 const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/Levine-l/CASA0029_project/main/hpm_processed';
-const OA_HPM_CSV_URL = GITHUB_RAW_BASE + '/oa21_hpm_priceper.csv';
-const POSTCODE_HPM_CSV_URL = GITHUB_RAW_BASE + '/postcode_hpm_selected.csv';
+const OA_HPM_CSV_URLS = [
+    '../data/houseprice_per_sqm/hpm_processed/oa21_hpm_priceper.csv',
+    GITHUB_RAW_BASE + '/oa21_hpm_priceper.csv',
+];
+const PRECOMPUTED_COMPARE_URLS = [
+    'data/flood_price_compare_precomputed.json',
+    '../data/houseprice_per_sqm/hpm_processed/flood_price_compare_precomputed.json',
+    GITHUB_RAW_BASE + '/flood_price_compare_precomputed.json',
+];
 const AREA_PRICE_SOURCES = {
     ny: { url: 'mapbox://levineliu.9ourp5qg', sourceLayer: 'oa_price_ny-d57h7y' },
     se: { url: 'mapbox://levineliu.40f0lqf6', sourceLayer: 'oa_price_se-5675ib' },
@@ -359,8 +413,9 @@ let currentAreaCode = initialAreaCode;
 let currentAreaPriceSourceLayer = areaPriceSource(currentAreaCode).sourceLayer;
 let currentPriceDataset = 'current';
 let oaHpmLookup = new Map();
-let postcodeHpmRows = [];
+let floodPriceCompareData = null;
 let priceDatasetLoadError = null;
+let floodPriceCompareLoadError = null;
 
 function removePriceLayersAndSource() {
     ['oa-price-extrusion', 'oa-price-line', 'oa-price-fill', 'oa-price-query'].forEach(id => {
@@ -374,6 +429,7 @@ function switchAreaPriceData(code) {
     currentAreaPriceSourceLayer = areaPriceSource(code).sourceLayer;
     removePriceLayersAndSource();
     addPriceLayers();
+    applyUiStateToMap();
     oaReady = true;
     scheduleOaHpmStateSync();
     scheduleBuildingColor();
@@ -591,10 +647,12 @@ let oaStateTimer = null;
 let bldgColorEnabled = true;
 let buildingHeightScale = 1;
 let priceSourceListenerBound = false;
+let currentCompareZone = 'FZ2+FZ3';
 const compareTitleEl = document.getElementById('compare-title');
 const compareSubtitleEl = document.getElementById('compare-subtitle');
 const compareSummaryEl = document.getElementById('compare-summary');
 const compareBarsEl = document.getElementById('compare-bars');
+const compareZoneButtons = Array.from(document.querySelectorAll('[data-compare-zone]'));
 const priceModeButtons = Array.from(document.querySelectorAll('[data-price-mode]'));
 const priceModeStatusEl = document.getElementById('price-mode-status');
 
@@ -611,6 +669,14 @@ function scheduleFloodPriceCompare() {
 function scheduleOaHpmStateSync() {
     clearTimeout(oaStateTimer);
     oaStateTimer = setTimeout(syncVisibleOaHpmStates, 250);
+}
+
+function updateCompareZoneButtons() {
+    compareZoneButtons.forEach(button => {
+        const active = button.dataset.compareZone === currentCompareZone;
+        button.classList.toggle('active', active);
+        button.setAttribute('aria-selected', String(active));
+    });
 }
 
 function resetBuildingColor() {
@@ -640,50 +706,6 @@ function featureCentroid(feature) {
     let cx = 0, cy = 0;
     for (const pt of ring) { cx += pt[0]; cy += pt[1]; }
     return [cx / ring.length, cy / ring.length];
-}
-
-function geometryPolygons(geometry) {
-    if (!geometry || !geometry.coordinates) return [];
-    if (geometry.type === 'Polygon') return [geometry.coordinates];
-    if (geometry.type === 'MultiPolygon') return geometry.coordinates;
-    return [];
-}
-
-function pointInRing(point, ring) {
-    let inside = false;
-    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-        const xi = ring[i][0];
-        const yi = ring[i][1];
-        const xj = ring[j][0];
-        const yj = ring[j][1];
-        const intersects = ((yi > point[1]) !== (yj > point[1])) &&
-            (point[0] < ((xj - xi) * (point[1] - yi)) / Math.max(yj - yi, 1e-12) + xi);
-        if (intersects) inside = !inside;
-    }
-    return inside;
-}
-
-function pointInFloodGeometry(point, geometry) {
-    const polygons = geometryPolygons(geometry);
-    for (const polygon of polygons) {
-        if (!polygon.length) continue;
-        if (!pointInRing(point, polygon[0])) continue;
-        let inHole = false;
-        for (let i = 1; i < polygon.length; i++) {
-            if (pointInRing(point, polygon[i])) {
-                inHole = true;
-                break;
-            }
-        }
-        if (!inHole) return true;
-    }
-    return false;
-}
-
-function formatCompactCurrency(value) {
-    if (!Number.isFinite(value)) return '-';
-    if (value >= 1e6) return 'GBP ' + (value / 1e6).toFixed(2) + 'M';
-    return 'GBP ' + Math.round(value / 1000).toLocaleString('en-GB') + 'k';
 }
 
 function formatCompactPricePerSqm(value) {
@@ -745,6 +767,32 @@ async function fetchCsvRows(url) {
     const response = await fetch(url);
     if (!response.ok) throw new Error('HTTP ' + response.status + ' for ' + url);
     return parseCsv(await response.text());
+}
+
+async function fetchFirstCsvRows(urls) {
+    const errors = [];
+    for (const url of urls) {
+        try {
+            return await fetchCsvRows(url);
+        } catch (error) {
+            errors.push(error.message);
+        }
+    }
+    throw new Error(errors.join(' | '));
+}
+
+async function fetchFirstJson(urls) {
+    const errors = [];
+    for (const url of urls) {
+        try {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error('HTTP ' + response.status + ' for ' + url);
+            return await response.json();
+        } catch (error) {
+            errors.push(error.message);
+        }
+    }
+    throw new Error(errors.join(' | '));
 }
 
 function setPriceModeStatus(message) {
@@ -860,13 +908,10 @@ function getOaMetricForFeature(feature) {
 }
 
 async function loadRemotePriceData() {
-    setPriceModeStatus('Loading GitHub raw OA and postcode HPM CSVs...');
-    try {
-        const [oaRows, postcodeRows] = await Promise.all([
-            fetchCsvRows(OA_HPM_CSV_URL),
-            fetchCsvRows(POSTCODE_HPM_CSV_URL),
-        ]);
+    setPriceModeStatus('Loading OA HPM CSV and precomputed flood comparison...');
 
+    try {
+        const oaRows = await fetchFirstCsvRows(OA_HPM_CSV_URLS);
         oaHpmLookup = new Map(
             oaRows
                 .map(row => [row.oa21cd, {
@@ -875,37 +920,38 @@ async function loadRemotePriceData() {
                 }])
                 .filter(([, value]) => Number.isFinite(value.avgPrice))
         );
-
-        postcodeHpmRows = postcodeRows
-            .map(row => ({
-                ladcd: row.ladcd,
-                lon: parseNumber(row.lon),
-                lat: parseNumber(row.lat),
-                medianPricePerSqm: parseNumber(row.median_priceper),
-                transactions: parseNumber(row.transaction_count),
-            }))
-            .filter(row => Number.isFinite(row.lon)
-                && Number.isFinite(row.lat)
-                && Number.isFinite(row.medianPricePerSqm)
-                && Number.isFinite(row.transactions)
-                && row.transactions >= POSTCODE_COMPARE_MIN_TRANSACTIONS);
-
         priceDatasetLoadError = null;
-        setPriceModeStatus('Map: switch between current OA avg price and OA HPM avg price. Compare: postcode HPM median GBP/sqm (transactions >= 3).');
         scheduleOaHpmStateSync();
-        scheduleFloodPriceCompare();
     } catch (error) {
         priceDatasetLoadError = error;
-        console.error('Failed to load GitHub raw HPM CSVs.', error);
-        setPriceModeStatus('GitHub raw HPM CSV load failed. Current OA remains available.');
+        console.error('Failed to load OA HPM CSV.', error);
+    }
+
+    try {
+        floodPriceCompareData = await fetchFirstJson(PRECOMPUTED_COMPARE_URLS);
+        floodPriceCompareLoadError = null;
         scheduleFloodPriceCompare();
+    } catch (error) {
+        floodPriceCompareLoadError = error;
+        console.error('Failed to load precomputed flood price comparison.', error);
+        scheduleFloodPriceCompare();
+    }
+
+    if (oaHpmLookup.size && floodPriceCompareData) {
+        setPriceModeStatus('Map: switch between current OA avg price and OA HPM avg price. Compare: precomputed postcode HPM median GBP/sqm (transactions >= ' + floodPriceCompareData.min_transactions + ').');
+    } else if (oaHpmLookup.size) {
+        setPriceModeStatus('OA HPM map loaded. Precomputed flood comparison failed to load.');
+    } else if (floodPriceCompareData) {
+        setPriceModeStatus('Precomputed flood comparison loaded. OA HPM map failed to load, so current OA remains available.');
+    } else {
+        setPriceModeStatus('HPM comparison data failed to load. Current OA remains available.');
     }
 }
 
 function renderFloodPriceCompareEmpty(summary) {
     const cityCase = cityCaseByKey(currentCityCaseKey);
     compareTitleEl.textContent = cityCase.name;
-    compareSubtitleEl.textContent = cityCase.theme + ' · postcode HPM median GBP/sqm';
+    compareSubtitleEl.textContent = cityCase.theme + ' - postcode HPM median GBP/sqm';
     compareSummaryEl.textContent = summary;
     compareBarsEl.innerHTML = '<div class="compare-empty">No comparable postcode groups found for the selected city preset.</div>';
 }
@@ -913,94 +959,60 @@ function renderFloodPriceCompareEmpty(summary) {
 function renderFloodPriceCompare(stats) {
     const cityCase = cityCaseByKey(currentCityCaseKey);
     compareTitleEl.textContent = cityCase.name;
-    compareSubtitleEl.textContent = cityCase.theme + ' · postcode HPM median GBP/sqm';
+    compareSubtitleEl.textContent = cityCase.theme + ' - postcode HPM median GBP/sqm';
     compareSummaryEl.textContent = stats.summary;
 
-    const maxAvg = Math.max(stats.inside.avg, stats.outside.avg, 1);
-    const insideWidth = Math.max(6, (stats.inside.avg / maxAvg) * 100);
-    const outsideWidth = Math.max(6, (stats.outside.avg / maxAvg) * 100);
+    const insideAvg = Number(stats.inside.avg) || 0;
+    const outsideAvg = Number(stats.outside.avg) || 0;
+    const maxAvg = Math.max(insideAvg, outsideAvg, 1);
+    const insideWidth = Math.max(6, (insideAvg / maxAvg) * 100);
+    const outsideWidth = Math.max(6, (outsideAvg / maxAvg) * 100);
 
     compareBarsEl.innerHTML = [
         '<div class="compare-row">' +
-            '<div class="compare-row-head"><span><strong>Inside flood zone</strong> · ' + stats.inside.count + ' postcode</span><span>' + formatCompactPricePerSqm(stats.inside.avg) + '</span></div>' +
+            '<div class="compare-row-head"><span><strong>Inside flood zone</strong> - ' + stats.inside.count + ' postcode groups</span><span>' + formatCompactPricePerSqm(stats.inside.avg) + '</span></div>' +
             '<div class="compare-bar-track"><div class="compare-bar-fill in" style="width:' + insideWidth + '%"></div></div>' +
         '</div>',
         '<div class="compare-row">' +
-            '<div class="compare-row-head"><span><strong>Outside flood zone</strong> · ' + stats.outside.count + ' postcode</span><span>' + formatCompactPricePerSqm(stats.outside.avg) + '</span></div>' +
+            '<div class="compare-row-head"><span><strong>Outside flood zone</strong> - ' + stats.outside.count + ' postcode groups</span><span>' + formatCompactPricePerSqm(stats.outside.avg) + '</span></div>' +
             '<div class="compare-bar-track"><div class="compare-bar-fill out" style="width:' + outsideWidth + '%"></div></div>' +
         '</div>'
     ].join('');
 }
 
+function compareZoneLabel(zoneKey) {
+    if (zoneKey === 'FZ2') return 'Zone 2';
+    if (zoneKey === 'FZ3') return 'Zone 3';
+    return 'All flood zones';
+}
+
 function updateFloodPriceCompare() {
-    if (!postcodeHpmRows.length) {
-        renderFloodPriceCompareEmpty(priceDatasetLoadError
-            ? 'GitHub raw postcode HPM CSV failed to load.'
-            : 'Waiting for postcode HPM data from GitHub raw CSV.');
+    if (!floodPriceCompareData || !floodPriceCompareData.cities) {
+        renderFloodPriceCompareEmpty(floodPriceCompareLoadError
+            ? 'Precomputed flood price comparison JSON failed to load.'
+            : 'Waiting for precomputed flood price comparison JSON.');
         return;
     }
 
     const cityCase = cityCaseByKey(currentCityCaseKey);
-    const selectedZones = [];
-    if (document.getElementById('chk-fz2').checked) selectedZones.push('FZ2');
-    if (document.getElementById('chk-fz3').checked) selectedZones.push('FZ3');
-    if (!selectedZones.length) {
-        renderFloodPriceCompareEmpty('Select Flood Zone 2 and/or Flood Zone 3 to run the postcode comparison.');
-        return;
-    }
-
-    const boundaryFeatures = cityCase.boundaryType === 'london'
-        ? map.querySourceFeatures('london-boundary-src', {
-            sourceLayer: LONDON_BOUNDARY_SOURCE_LAYER,
-        })
-        : [];
-    const floodFeatures = map.querySourceFeatures('flood-src', {
-        sourceLayer: 'flood_uk_simplified',
-        filter: ['in', ['get', 'flood_zone'], ['literal', selectedZones]],
-    });
-    if ((cityCase.boundaryType === 'london' && !boundaryFeatures.length) || !floodFeatures.length) {
-        renderFloodPriceCompareEmpty('Waiting for the selected city boundary and flood layers to load.');
-        return;
-    }
-
-    const boundaryGeometries = boundaryFeatures.map(feature => feature.geometry).filter(Boolean);
-    const floodGeometries = floodFeatures.map(feature => feature.geometry).filter(Boolean);
-    let insidePriceSum = 0;
-    let insideWeightSum = 0;
-    let insidePostcodeCount = 0;
-    let outsidePriceSum = 0;
-    let outsideWeightSum = 0;
-    let outsidePostcodeCount = 0;
-
-    for (const row of postcodeHpmRows) {
-        if (cityCase.boundaryType === 'lad' && row.ladcd !== cityCase.boundaryCode) continue;
-
-        const point = [row.lon, row.lat];
-        if (cityCase.boundaryType === 'london' && !boundaryGeometries.some(geometry => pointInFloodGeometry(point, geometry))) continue;
-
-        const inside = floodGeometries.some(geometry => pointInFloodGeometry(point, geometry));
-        if (inside) {
-            insidePriceSum += row.medianPricePerSqm * row.transactions;
-            insideWeightSum += row.transactions;
-            insidePostcodeCount += 1;
-        } else {
-            outsidePriceSum += row.medianPricePerSqm * row.transactions;
-            outsideWeightSum += row.transactions;
-            outsidePostcodeCount += 1;
-        }
-    }
-
-    if (!insidePostcodeCount || !outsidePostcodeCount) {
+    const zoneKey = currentCompareZone;
+    const cityStats = floodPriceCompareData.cities[cityCase.key];
+    const stats = cityStats && cityStats.zones && cityStats.zones[zoneKey];
+    if (!stats || !stats.inside || !stats.outside || !stats.inside.count || !stats.outside.count) {
         renderFloodPriceCompareEmpty('The selected city boundary does not contain enough postcode groups on both sides of the flood boundary.');
         return;
     }
 
+    const totalPostcodes = stats.inside.count + stats.outside.count;
+    const minTransactions = floodPriceCompareData.min_transactions || POSTCODE_COMPARE_MIN_TRANSACTIONS;
+    const totalTransactions = (Number(stats.inside.weight) || 0) + (Number(stats.outside.weight) || 0);
     renderFloodPriceCompare({
-        inside: { avg: insidePriceSum / insideWeightSum, count: insidePostcodeCount },
-        outside: { avg: outsidePriceSum / outsideWeightSum, count: outsidePostcodeCount },
-        summary: 'Weighted by transaction counts across ' + (insidePostcodeCount + outsidePostcodeCount)
-            + ' postcode groups inside the selected city boundary using postcode HPM median GBP/sqm (transactions >= '
-            + POSTCODE_COMPARE_MIN_TRANSACTIONS + ').',
+        inside: stats.inside,
+        outside: stats.outside,
+        summary: compareZoneLabel(zoneKey) + ' comparison, precomputed in Python from ' + totalPostcodes
+            + ' postcode groups and ' + totalTransactions.toLocaleString('en-GB')
+            + ' transactions. Weighted by transaction count using postcode HPM median GBP/sqm (transactions >= '
+            + minTransactions + ').',
     });
 }
 
@@ -1187,13 +1199,40 @@ function toggleVis(ids, on) {
     ids.forEach(id => { if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none'); });
 }
 
-document.getElementById('chk-flood').onchange = e => toggleVis(['flood-fz2-fill','flood-fz3-fill','flood-fz2-line','flood-fz3-line'], e.target.checked);
+function applyUiStateToMap() {
+    const floodOn = document.getElementById('chk-flood').checked;
+    const priceOn = document.getElementById('chk-price').checked;
+    const buildingsOn = document.getElementById('chk-buildings').checked;
+    const fz2On = document.getElementById('chk-fz2').checked;
+    const fz3On = document.getElementById('chk-fz3').checked;
+    const price3dOn = document.getElementById('chk-price-3d').checked;
+    const floodOpacity = document.getElementById('flood-opacity').value / 100;
+    const priceOpacity = document.getElementById('price-opacity').value / 100;
+
+    toggleVis(['flood-fz2-fill','flood-fz2-line'], floodOn && fz2On);
+    toggleVis(['flood-fz3-fill','flood-fz3-line'], floodOn && fz3On);
+    toggleVis(['oa-price-fill','oa-price-line'], priceOn);
+    toggleVis(['3d-buildings','priced-buildings'], buildingsOn);
+    toggleVis(['oa-price-extrusion'], price3dOn);
+
+    ['flood-fz2-fill','flood-fz3-fill'].forEach(id => {
+        if (map.getLayer(id)) map.setPaintProperty(id, 'fill-opacity', floodOpacity);
+    });
+    if (map.getLayer('oa-price-fill')) {
+        map.setPaintProperty('oa-price-fill', 'fill-opacity', ['case', ['boolean', ['feature-state', 'hover'], false], Math.min(priceOpacity + 0.2, 1), priceOpacity]);
+    }
+}
+
+document.getElementById('chk-flood').onchange = () => {
+    applyUiStateToMap();
+    scheduleFloodPriceCompare();
+};
 document.getElementById('chk-price').onchange = e => {
-    toggleVis(['oa-price-fill','oa-price-line'], e.target.checked);
+    applyUiStateToMap();
     if (bldgColorEnabled) scheduleBuildingColor();
 };
 document.getElementById('chk-buildings').onchange = e => {
-    toggleVis(['3d-buildings','priced-buildings'], e.target.checked);
+    applyUiStateToMap();
     if (e.target.checked && bldgColorEnabled) scheduleBuildingColor();
     if (!e.target.checked) resetBuildingColor();
 };
@@ -1202,13 +1241,13 @@ document.getElementById('chk-bldg-color').onchange = e => {
     if (bldgColorEnabled) scheduleBuildingColor();
     else resetBuildingColor();
 };
-document.getElementById('chk-price-3d').onchange = e => toggleVis(['oa-price-extrusion'], e.target.checked);
+document.getElementById('chk-price-3d').onchange = () => applyUiStateToMap();
 document.getElementById('chk-fz2').onchange = e => {
-    toggleVis(['flood-fz2-fill','flood-fz2-line'], e.target.checked);
+    applyUiStateToMap();
     scheduleFloodPriceCompare();
 };
 document.getElementById('chk-fz3').onchange = e => {
-    toggleVis(['flood-fz3-fill','flood-fz3-line'], e.target.checked);
+    applyUiStateToMap();
     scheduleFloodPriceCompare();
 };
 
@@ -1216,17 +1255,23 @@ priceModeButtons.forEach(button => {
     button.onclick = () => setPriceDatasetMode(button.dataset.priceMode);
 });
 
+compareZoneButtons.forEach(button => {
+    button.onclick = () => {
+        currentCompareZone = button.dataset.compareZone;
+        updateCompareZoneButtons();
+        scheduleFloodPriceCompare();
+    };
+});
+updateCompareZoneButtons();
+
 document.getElementById('flood-opacity').oninput = e => {
-    const v = e.target.value / 100;
     document.getElementById('flood-opacity-val').textContent = e.target.value + '%';
-    ['flood-fz2-fill','flood-fz3-fill'].forEach(id => { if (map.getLayer(id)) map.setPaintProperty(id, 'fill-opacity', v); });
+    applyUiStateToMap();
 };
 
 document.getElementById('price-opacity').oninput = e => {
-    const v = e.target.value / 100;
     document.getElementById('price-opacity-val').textContent = e.target.value + '%';
-    if (map.getLayer('oa-price-fill'))
-        map.setPaintProperty('oa-price-fill', 'fill-opacity', ['case', ['boolean', ['feature-state', 'hover'], false], Math.min(v+0.2,1), v]);
+    applyUiStateToMap();
 };
 
 document.getElementById('building-height').oninput = e => {
@@ -1237,6 +1282,15 @@ document.getElementById('building-height').oninput = e => {
         map.setPaintProperty('3d-buildings', 'fill-extrusion-height', ['interpolate', ['linear'], ['zoom'], BUILDING_MIN_ZOOM - 0.5, 0, BUILDING_MIN_ZOOM, ['*', v, ['get', 'height']]]);
     }
     if (bldgColorEnabled) scheduleBuildingColor();
+};
+
+const legendEl = document.getElementById('legend');
+const legendToggleEl = document.getElementById('legend-toggle');
+legendToggleEl.onclick = () => {
+    const collapsed = legendEl.classList.toggle('collapsed');
+    legendToggleEl.textContent = collapsed ? '+' : '-';
+    legendToggleEl.setAttribute('aria-expanded', String(!collapsed));
+    legendToggleEl.title = collapsed ? 'Expand legend' : 'Collapse legend';
 };
 
 loadRemotePriceData();
