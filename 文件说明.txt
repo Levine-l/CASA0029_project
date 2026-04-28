@@ -1,3 +1,0 @@
-TQ_Building和TQ_TidalWater文件分别是建筑底图和流域的图层；
-Flood_TQ_bbox文件是裁剪后的仅TQ范围的FloodZone2+3的图层；
-三个文件图层已叠加在QGIS文件中。
