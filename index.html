@@ -180,15 +180,14 @@
 
 <div class="title-bar">
     <h1>UK Flood Risk & Property Prices</h1>
-    <span class="subtitle">Flood Zone 2/3 &middot; Output Area avg. prices (2018&ndash;2025) &middot; Selected regions in England</span>
+    <span class="subtitle">Flood Zone 2/3 &middot; Output Area avg. prices &middot; Selected regions in England</span>
 </div>
 
 <div class="panel">
     <h3>Layers</h3>
     <label><input type="checkbox" id="chk-flood" checked /> Flood Zones</label>
     <label><input type="checkbox" id="chk-price" /> OA Price Choropleth</label>
-    <label><input type="checkbox" id="chk-buildings" checked /> 3D Buildings</label>
-    <label><input type="checkbox" id="chk-static-bldg" checked /> Static Buildings <span style="font-size:10px;color:#64748b">(all zoom)</span></label>
+    <label><input type="checkbox" id="chk-buildings" checked /> Buildings</label>
 
     <div class="divider"></div>
     <h3>Flood Zone</h3>
@@ -209,7 +208,7 @@
     <div class="divider"></div>
     <h3>Navigate</h3>
     <div class="area-buttons" id="area-buttons"></div>
-    <div class="panel-note">* City cases switch to the matching OA price source region</div>
+    <div class="panel-note"></div>
 
     <div id="price-mode-status" style="display:none"></div>
 </div>
@@ -217,7 +216,7 @@
 <div class="right-stack">
     <div class="compare-card">
         <div class="compare-title" id="compare-title">Current city case</div>
-        <div class="compare-subtitle" id="compare-subtitle">Postcode HPM median GBP/sqm</div>
+        <div class="compare-subtitle" id="compare-subtitle"></div>
         <div class="compare-zone-tabs" id="compare-zone-tabs" role="tablist" aria-label="Flood zone comparison">
             <button class="compare-zone-btn active" type="button" data-compare-zone="FZ2+FZ3">All</button>
             <button class="compare-zone-btn" type="button" data-compare-zone="FZ2">Zone 2</button>
@@ -997,16 +996,16 @@ async function loadRemotePriceData() {
 function renderFloodPriceCompareEmpty(summary) {
     const cityCase = cityCaseByKey(currentCityCaseKey);
     compareTitleEl.textContent = cityCase.name;
-    compareSubtitleEl.textContent = cityCase.theme + ' - postcode HPM median GBP/sqm';
-    compareSummaryEl.textContent = summary;
+    compareSubtitleEl.textContent = cityCase.theme;
+    compareSummaryEl.innerHTML = summary.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/\n/g,'<br>');
     compareBarsEl.innerHTML = '<div class="compare-empty">No comparable postcode groups found for the selected city preset.</div>';
 }
 
 function renderFloodPriceCompare(stats) {
     const cityCase = cityCaseByKey(currentCityCaseKey);
     compareTitleEl.textContent = cityCase.name;
-    compareSubtitleEl.textContent = cityCase.theme + ' - postcode HPM median GBP/sqm';
-    compareSummaryEl.textContent = stats.summary;
+    compareSubtitleEl.textContent = cityCase.theme;
+    compareSummaryEl.innerHTML = stats.summary.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/\n/g,'<br>');
 
     const insideAvg = Number(stats.inside.avg) || 0;
     const outsideAvg = Number(stats.outside.avg) || 0;
@@ -1052,13 +1051,15 @@ function updateFloodPriceCompare() {
     const totalPostcodes = stats.inside.count + stats.outside.count;
     const minTransactions = floodPriceCompareData.min_transactions || POSTCODE_COMPARE_MIN_TRANSACTIONS;
     const totalTransactions = (Number(stats.inside.weight) || 0) + (Number(stats.outside.weight) || 0);
+    const COMPARE_SUMMARIES = {
+        'FZ2+FZ3': 'House Price in Flood Zone 2+3 Vs Out of Flood Zone.\nCalculated using the median price per square meter (£/sqm) for each postcode, weighted by transaction volume.',
+        'FZ2':     'House Price in Flood Zone 2 Vs Out of Flood Zone.\nCalculated using the median price per square meter (£/sqm) for each postcode, weighted by transaction volume.',
+        'FZ3':     'House Price in Flood Zone 3 Vs Out of Flood Zone.\nCalculated using the median price per square meter (£/sqm) for each postcode, weighted by transaction volume.',
+    };
     renderFloodPriceCompare({
         inside: stats.inside,
         outside: stats.outside,
-        summary: compareZoneLabel(zoneKey) + ' comparison, precomputed in Python from ' + totalPostcodes
-            + ' postcode groups and ' + totalTransactions.toLocaleString('en-GB')
-            + ' transactions. Weighted by transaction count using postcode HPM median GBP/sqm (transactions >= '
-            + minTransactions + ').',
+        summary: COMPARE_SUMMARIES[zoneKey] || COMPARE_SUMMARIES['FZ2+FZ3'],
     });
 }
 
@@ -1301,9 +1302,18 @@ document.getElementById('chk-price').onchange = e => {
     scheduleBuildingColor();
 };
 document.getElementById('chk-buildings').onchange = e => {
+    // Controls both 3D buildings and static buildings together
+    staticBldgEnabled = e.target.checked;
     applyUiStateToMap();
     if (e.target.checked) scheduleBuildingColor();
     else resetBuildingColor();
+    for (const k of Object.keys(STATIC_BLDG_TILESETS)) {
+        const id = staticBldgLayerId(k);
+        if (map.getLayer(id)) {
+            const vis = staticBldgEnabled && k === currentCityCaseKey ? 'visible' : 'none';
+            map.setLayoutProperty(id, 'visibility', vis);
+        }
+    }
 };
 document.getElementById('chk-fz2').onchange = e => {
     applyUiStateToMap();
@@ -1326,18 +1336,6 @@ compareZoneButtons.forEach(button => {
     };
 });
 updateCompareZoneButtons();
-
-document.getElementById('chk-static-bldg').onchange = e => {
-    staticBldgEnabled = e.target.checked;
-    for (const k of Object.keys(STATIC_BLDG_TILESETS)) {
-        const id = staticBldgLayerId(k);
-        if (map.getLayer(id)) {
-            // Only show the active city's layer (if enabled)
-            const vis = staticBldgEnabled && k === currentCityCaseKey ? 'visible' : 'none';
-            map.setLayoutProperty(id, 'visibility', vis);
-        }
-    }
-};
 
 // opacity sliders removed — values are fixed via hidden inputs
 
