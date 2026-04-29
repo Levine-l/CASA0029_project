@@ -201,20 +201,10 @@
         Zone 3 &mdash; High risk
     </label>
 
-    <div class="divider"></div>
-    <h3>Style</h3>
-    <div class="slider-group">
-        <span>Flood opacity: <b id="flood-opacity-val">80%</b></span>
-        <input type="range" id="flood-opacity" min="0" max="100" value="80" />
-    </div>
-    <div class="slider-group">
-        <span>Price opacity: <b id="price-opacity-val">65%</b></span>
-        <input type="range" id="price-opacity" min="0" max="100" value="65" />
-    </div>
-    <div class="slider-group">
-        <span>Static bldg opacity: <b id="static-bldg-opacity-val">80%</b></span>
-        <input type="range" id="static-bldg-opacity" min="0" max="100" value="80" />
-    </div>
+    <!-- opacity sliders removed; fixed values -->
+    <input type="hidden" id="flood-opacity" value="90" />
+    <input type="hidden" id="price-opacity" value="65" />
+    <input type="hidden" id="static-bldg-opacity" value="80" />
 
     <div class="divider"></div>
     <h3>Navigate</h3>
@@ -235,29 +225,6 @@
         </div>
         <div class="compare-summary" id="compare-summary">Jump to a city case to compare postcode HPM prices inside and outside flood zones.</div>
         <div class="compare-bars" id="compare-bars"></div>
-    </div>
-
-    <div class="trend-card" id="trend-card">
-        <div class="trend-card-header">
-            <div>
-                <div class="trend-card-title" id="trend-title">Price / m&sup2; Annual Trend</div>
-                <div class="trend-card-subtitle" id="trend-subtitle">Median GBP/m&sup2; by flood zone</div>
-            </div>
-            <button class="legend-toggle" id="trend-toggle" type="button" aria-expanded="true" title="Collapse chart">&minus;</button>
-        </div>
-        <div id="trend-body">
-            <div class="trend-canvas-wrap" id="trend-canvas-wrap">
-                <canvas id="trend-canvas" height="148"></canvas>
-                <div class="trend-vline" id="trend-vline"></div>
-                <div class="trend-tt" id="trend-tt"></div>
-            </div>
-            <div class="trend-zone-legend">
-                <span class="trend-zone-item"><span class="trend-zone-dot" style="background:#ef4444"></span>Zone 3</span>
-                <span class="trend-zone-item"><span class="trend-zone-dot" style="background:#f59e0b"></span>Zone 2</span>
-                <span class="trend-zone-item"><span class="trend-zone-dot" style="background:#3b82f6"></span>No flood</span>
-            </div>
-            <div class="trend-empty-msg" id="trend-empty" style="display:none">Jump to a city case to see the price trend.</div>
-        </div>
     </div>
 
     <div class="legend" id="legend">
@@ -314,17 +281,13 @@ const PRECOMPUTED_COMPARE_URLS = [
     '../data/houseprice_per_sqm/hpm_processed/flood_price_compare_precomputed.json',
     GITHUB_RAW_BASE + '/flood_price_compare_precomputed.json',
 ];
-const PRICE_TREND_URLS = [
-    'data/price_trend_by_zone.json',
-    '../data/houseprice_per_sqm/hpm_processed/price_trend_by_zone.json',
-];
 // Static pre-processed building vector tilesets — uploaded to Mapbox
 // Source layer names match the original filenames (verify in Mapbox Studio if needed)
 const STATIC_BLDG_TILESETS = {
-    'hull':           { url: 'mapbox://levineliu.1t4pirfr', sourceLayer: 'buildings_hull' },
-    'york':           { url: 'mapbox://levineliu.gxq6wscy', sourceLayer: 'buildings_york' },
-    'great-yarmouth': { url: 'mapbox://levineliu.0b7n5axl', sourceLayer: 'buildings_great_yarmouth' },
-    'london':         { url: 'mapbox://levineliu.5ricfvbo', sourceLayer: 'buildings_london' },
+    'hull':           { url: 'mapbox://levineliu.6oin1hba', sourceLayer: 'buildings_hull' },
+    'york':           { url: 'mapbox://levineliu.drsadjct', sourceLayer: 'buildings_york' },
+    'great-yarmouth': { url: 'mapbox://levineliu.099ee9on', sourceLayer: 'buildings_great_yarmouth' },
+    'london':         { url: 'mapbox://levineliu.89ciem4a', sourceLayer: 'buildings_london' },
 };
 function staticBldgLayerId(k) { return 'static-buildings-' + k; }
 function staticBldgSrcId(k)   { return 'static-bldg-src-' + k; }
@@ -436,7 +399,10 @@ CITY_CASES.forEach(info => {
         updateBoundaryQueryFilter(info);
         renderFloodPriceCompareEmpty('Loading the postcode HPM comparison...');
         switchAreaPriceData(info.areaCode);
-        renderPriceTrendChart(info.key);
+        // Notify parent page (flood_visualisation) to sync the trend chart
+        if (window.parent !== window) {
+            window.parent.postMessage({ type: 'cityChange', trendKey: CITY_KEY_TREND_MAP[info.key] }, '*');
+        }
         showStaticBuildingsForCity(info.key);
     };
     areaBtnsEl.appendChild(btn);
@@ -480,9 +446,6 @@ let oaHpmLookup = new Map();
 let floodPriceCompareData = null;
 let priceDatasetLoadError = null;
 let floodPriceCompareLoadError = null;
-let priceTrendData = null;
-let priceTrendLoadError = null;
-let trendCollapsed = false;
 let staticBldgEnabled = true;
 let staticBldgOpacity = 0.8;
 
@@ -1015,13 +978,10 @@ async function loadRemotePriceData() {
         scheduleFloodPriceCompare();
     }
 
-    try {
-        priceTrendData = await fetchFirstJson(PRICE_TREND_URLS);
-    } catch (e) {
-        priceTrendLoadError = e;
-        console.error('Failed to load price trend data.', e);
+    // Also notify parent of the initial city on load
+    if (window.parent !== window) {
+        window.parent.postMessage({ type: 'cityChange', trendKey: CITY_KEY_TREND_MAP[currentCityCaseKey] }, '*');
     }
-    renderPriceTrendChart(currentCityCaseKey);
 
     if (oaHpmLookup.size && floodPriceCompareData) {
         setPriceModeStatus('Map: switch between current OA avg price and OA HPM avg price. Compare: precomputed postcode HPM median GBP/sqm (transactions >= ' + floodPriceCompareData.min_transactions + ').');
@@ -1379,24 +1339,7 @@ document.getElementById('chk-static-bldg').onchange = e => {
     }
 };
 
-document.getElementById('flood-opacity').oninput = e => {
-    document.getElementById('flood-opacity-val').textContent = e.target.value + '%';
-    applyUiStateToMap();
-};
-
-document.getElementById('price-opacity').oninput = e => {
-    document.getElementById('price-opacity-val').textContent = e.target.value + '%';
-    applyUiStateToMap();
-};
-
-document.getElementById('static-bldg-opacity').oninput = e => {
-    staticBldgOpacity = +e.target.value / 100;
-    document.getElementById('static-bldg-opacity-val').textContent = e.target.value + '%';
-    for (const k of Object.keys(STATIC_BLDG_TILESETS)) {
-        const id = staticBldgLayerId(k);
-        if (map.getLayer(id)) map.setPaintProperty(id, 'fill-extrusion-opacity', staticBldgOpacity);
-    }
-};
+// opacity sliders removed — values are fixed via hidden inputs
 
 const legendEl = document.getElementById('legend');
 const legendToggleEl = document.getElementById('legend-toggle');
@@ -1407,187 +1350,7 @@ legendToggleEl.onclick = () => {
     legendToggleEl.title = collapsed ? 'Expand legend' : 'Collapse legend';
 };
 
-document.getElementById('trend-toggle').onclick = () => {
-    trendCollapsed = !trendCollapsed;
-    document.getElementById('trend-body').style.display = trendCollapsed ? 'none' : '';
-    const btn = document.getElementById('trend-toggle');
-    btn.textContent = trendCollapsed ? '+' : '\u2212';
-    btn.setAttribute('aria-expanded', String(!trendCollapsed));
-    btn.title = trendCollapsed ? 'Expand chart' : 'Collapse chart';
-};
-
-/* ============================================================
-   PRICE TREND CHART
-   ============================================================ */
-function renderPriceTrendChart(caseKey) {
-    if (trendCollapsed) return;
-    const titleEl    = document.getElementById('trend-title');
-    const subtitleEl = document.getElementById('trend-subtitle');
-    const emptyEl    = document.getElementById('trend-empty');
-    const wrapEl     = document.getElementById('trend-canvas-wrap');
-    const canvas     = document.getElementById('trend-canvas');
-
-    const cityCase = cityCaseByKey(caseKey);
-    titleEl.textContent    = cityCase.name + ' \u00B7 Price / m\u00B2 Trend';
-    subtitleEl.textContent = cityCase.theme + ' \u00B7 median GBP/m\u00B2';
-
-    const trendKey = CITY_KEY_TREND_MAP[caseKey];
-    const cityData = priceTrendData && priceTrendData.cities && priceTrendData.cities[trendKey];
-
-    if (!cityData) {
-        wrapEl.style.display = 'none';
-        emptyEl.style.display = '';
-        emptyEl.textContent = priceTrendLoadError
-            ? 'Price trend data failed to load.'
-            : 'Jump to a city case to see the price trend.';
-        return;
-    }
-
-    wrapEl.style.display = '';
-    emptyEl.style.display = 'none';
-    _drawTrendCanvas(canvas, wrapEl, cityData);
-}
-
-function _drawTrendCanvas(canvas, wrap, cityData) {
-    const dpr  = Math.min(window.devicePixelRatio || 1, 2);
-    const cssW = wrap.clientWidth || 228;
-    const cssH = 148;
-    canvas.width  = cssW * dpr;
-    canvas.height = cssH * dpr;
-    canvas.style.width  = cssW + 'px';
-    canvas.style.height = cssH + 'px';
-
-    const ctx = canvas.getContext('2d');
-    ctx.scale(dpr, dpr);
-    ctx.clearRect(0, 0, cssW, cssH);
-
-    const P = { top: 10, right: 8, bottom: 26, left: 44 };
-    const cW = cssW - P.left - P.right;
-    const cH = cssH - P.top  - P.bottom;
-    const years = cityData.years;
-
-    const allVals = [];
-    for (const zc of TREND_ZONE_CFG) {
-        (cityData[zc.key] || []).forEach(v => { if (v != null) allVals.push(v); });
-    }
-    if (!allVals.length) return;
-
-    const rawMin = Math.min(...allVals);
-    const rawMax = Math.max(...allVals);
-    const vpad   = (rawMax - rawMin) * 0.12 || rawMax * 0.1;
-    const yMin   = Math.max(0, rawMin - vpad);
-    const yMax   = rawMax + vpad;
-    const xMin   = years[0];
-    const xMax   = years[years.length - 1];
-
-    function xp(yr)  { return P.left + (yr - xMin) / (xMax - xMin) * cW; }
-    function yp(val) { return P.top  + (1 - (val - yMin) / (yMax - yMin)) * cH; }
-
-    // Y gridlines + labels
-    for (let i = 0; i <= 4; i++) {
-        const v = yMin + (yMax - yMin) * i / 4;
-        const y = yp(v);
-        ctx.strokeStyle = 'rgba(148,163,184,0.10)';
-        ctx.lineWidth = 0.5;
-        ctx.beginPath(); ctx.moveTo(P.left, y); ctx.lineTo(P.left + cW, y); ctx.stroke();
-        ctx.fillStyle = 'rgba(148,163,184,0.65)';
-        ctx.font = '9px system-ui,sans-serif';
-        ctx.textAlign = 'right';
-        const lbl = v >= 1000 ? (v / 1000).toFixed(v >= 10000 ? 0 : 1) + 'k' : Math.round(v).toString();
-        ctx.fillText(lbl, P.left - 4, y + 3.5);
-    }
-
-    // X baseline
-    ctx.strokeStyle = 'rgba(148,163,184,0.18)';
-    ctx.lineWidth = 0.5;
-    ctx.beginPath(); ctx.moveTo(P.left, P.top + cH); ctx.lineTo(P.left + cW, P.top + cH); ctx.stroke();
-
-    // X labels (every 4 years)
-    const step = years.length > 14 ? 4 : years.length > 8 ? 3 : 2;
-    ctx.fillStyle = 'rgba(148,163,184,0.65)';
-    ctx.font = '9px system-ui,sans-serif';
-    ctx.textAlign = 'center';
-    years.forEach((yr, i) => {
-        if (i % step !== 0 && i !== years.length - 1) return;
-        ctx.fillText(String(yr), xp(yr), P.top + cH + 16);
-    });
-
-    // Zone lines + dots
-    for (const zc of TREND_ZONE_CFG) {
-        const vals = cityData[zc.key];
-        if (!vals) continue;
-        ctx.strokeStyle = zc.color;
-        ctx.lineWidth = 1.8;
-        ctx.lineJoin = 'round';
-        ctx.lineCap  = 'round';
-        ctx.globalAlpha = 0.90;
-        ctx.beginPath();
-        let started = false;
-        years.forEach((yr, i) => {
-            const v = vals[i];
-            if (v == null) { started = false; return; }
-            if (!started) { ctx.moveTo(xp(yr), yp(v)); started = true; }
-            else ctx.lineTo(xp(yr), yp(v));
-        });
-        ctx.stroke();
-        ctx.fillStyle = zc.color;
-        ctx.globalAlpha = 0.70;
-        years.forEach((yr, i) => {
-            const v = vals[i];
-            if (v == null) return;
-            ctx.beginPath();
-            ctx.arc(xp(yr), yp(v), 1.8, 0, Math.PI * 2);
-            ctx.fill();
-        });
-    }
-    ctx.globalAlpha = 1;
-
-    canvas._meta = { years, cityData, xMin, xMax, yMin, yMax, P, cW, cH };
-}
-
-function initTrendTooltip() {
-    const canvas = document.getElementById('trend-canvas');
-    const vline  = document.getElementById('trend-vline');
-    const tt     = document.getElementById('trend-tt');
-    const wrap   = document.getElementById('trend-canvas-wrap');
-
-    canvas.addEventListener('mousemove', e => {
-        const m = canvas._meta;
-        if (!m) return;
-        const rect = canvas.getBoundingClientRect();
-        const mx = e.clientX - rect.left;
-        const { years, cityData, xMin, xMax, P, cW } = m;
-        if (mx < P.left || mx > P.left + cW) {
-            vline.style.display = 'none'; tt.style.display = 'none'; return;
-        }
-        const frac = (mx - P.left) / cW;
-        const idx  = Math.min(years.length - 1, Math.max(0, Math.round(frac * (years.length - 1))));
-        const yr   = years[idx];
-        const xPx  = P.left + (yr - xMin) / (xMax - xMin) * cW;
-
-        vline.style.left    = xPx + 'px';
-        vline.style.display = 'block';
-
-        let html = '<span style="font-weight:700;color:#f1f5f9">' + yr + '</span>';
-        for (const zc of TREND_ZONE_CFG) {
-            const v = cityData[zc.key] && cityData[zc.key][idx];
-            if (v == null) continue;
-            html += '<br><span style="color:' + zc.color + '">' + zc.label + '</span>: \u00A3' + Math.round(v).toLocaleString('en-GB') + '/m\u00B2';
-        }
-        tt.innerHTML    = html;
-        tt.style.display = 'block';
-        const wrapW = wrap.clientWidth;
-        const ttW   = tt.offsetWidth || 110;
-        tt.style.left = (xPx + 8 + ttW > wrapW ? xPx - ttW - 8 : xPx + 8) + 'px';
-        tt.style.top  = '4px';
-    });
-    canvas.addEventListener('mouseleave', () => {
-        vline.style.display = 'none'; tt.style.display = 'none';
-    });
-}
-
-initTrendTooltip();
-renderPriceTrendChart(currentCityCaseKey);
+// trend-toggle and PRICE TREND CHART removed — chart lives in parent page (flood_visualisation)
 
 /* ============================================================
    STATIC BUILDINGS — zoom-independent pre-processed GeoJSON
@@ -1595,12 +1358,24 @@ renderPriceTrendChart(currentCityCaseKey);
 function initStaticBuildingLayers() {
     for (const [k, cfg] of Object.entries(STATIC_BLDG_TILESETS)) {
         if (!map.getSource(staticBldgSrcId(k))) {
-            map.addSource(staticBldgSrcId(k), { type: 'vector', url: cfg.url });
+            // Use tiles array + explicit minzoom:0 to bypass the TileJSON minzoom
+            // restriction (which Mapbox sets ~10-12 for building data), restoring
+            // the "visible at all zoom levels" behaviour of the original GeoJSON approach.
+            const tilesetId = cfg.url.replace('mapbox://', '');
+            map.addSource(staticBldgSrcId(k), {
+                type: 'vector',
+                tiles: [
+                    `https://api.mapbox.com/v4/${tilesetId}/{z}/{x}/{y}.mvt?access_token=${mapboxgl.accessToken}`
+                ],
+                minzoom: 0,
+                maxzoom: 16,
+            });
         }
         if (!map.getLayer(staticBldgLayerId(k))) {
             map.addLayer({
                 id: staticBldgLayerId(k),
                 type: 'fill-extrusion',
+                minzoom: 0,
                 source: staticBldgSrcId(k),
                 'source-layer': cfg.sourceLayer,
                 layout: { visibility: 'none' },
