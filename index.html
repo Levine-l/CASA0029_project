@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>UK Flood Zone & Property Prices</title>
+    <title>UK Flood Zone & Property Prices (Static Buildings Test)</title>
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.css" rel="stylesheet" />
     <script src="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.js"></script>
     <style>
@@ -64,6 +64,7 @@
         .legend-row { display: flex; align-items: center; gap: 8px; font-size: 12px; padding: 3px 0; }
         .legend-swatch { width: 24px; height: 14px; border-radius: 3px; flex-shrink: 0; }
         .legend .section-title { font-size: 12px; font-weight: 600; color: #cbd5e1; margin-top: 10px; margin-bottom: 4px; }
+        .legend .zone-title { font-size: 11px; font-weight: 600; color: #94a3b8; margin-top: 8px; margin-bottom: 2px; padding-left: 2px; }
 
         .mapboxgl-popup-content {
             background: rgba(15,23,42,.95) !important; backdrop-filter: blur(12px);
@@ -185,35 +186,34 @@
 <div class="panel">
     <h3>Layers</h3>
     <label><input type="checkbox" id="chk-flood" checked /> Flood Zones</label>
-    <label><input type="checkbox" id="chk-price" checked /> OA Price Choropleth</label>
+    <label><input type="checkbox" id="chk-price" /> OA Price Choropleth</label>
     <label><input type="checkbox" id="chk-buildings" checked /> 3D Buildings</label>
-    <label><input type="checkbox" id="chk-bldg-color" checked /> Buildings by Price</label>
-    <label><input type="checkbox" id="chk-price-3d" /> Price 3D Extrusion</label>
+    <label><input type="checkbox" id="chk-static-bldg" checked /> Static Buildings <span style="font-size:10px;color:#64748b">(all zoom)</span></label>
 
     <div class="divider"></div>
     <h3>Flood Zone</h3>
     <label><input type="checkbox" id="chk-fz2" checked />
-        <span style="display:inline-block;width:12px;height:12px;border-radius:2px;background:#f59e0b"></span>
+        <span style="display:inline-block;width:12px;height:12px;border-radius:2px"></span>
         Zone 2 &mdash; Medium risk
     </label>
     <label><input type="checkbox" id="chk-fz3" checked />
-        <span style="display:inline-block;width:12px;height:12px;border-radius:2px;background:#ef4444"></span>
+        <span style="display:inline-block;width:12px;height:12px;border-radius:2px"></span>
         Zone 3 &mdash; High risk
     </label>
 
     <div class="divider"></div>
     <h3>Style</h3>
     <div class="slider-group">
-        <span>Flood opacity: <b id="flood-opacity-val">60%</b></span>
-        <input type="range" id="flood-opacity" min="0" max="100" value="60" />
+        <span>Flood opacity: <b id="flood-opacity-val">80%</b></span>
+        <input type="range" id="flood-opacity" min="0" max="100" value="80" />
     </div>
     <div class="slider-group">
         <span>Price opacity: <b id="price-opacity-val">65%</b></span>
         <input type="range" id="price-opacity" min="0" max="100" value="65" />
     </div>
     <div class="slider-group">
-        <span>Building height: <b id="building-height-val">1.0x</b></span>
-        <input type="range" id="building-height" min="0" max="30" value="10" />
+        <span>Static bldg opacity: <b id="static-bldg-opacity-val">80%</b></span>
+        <input type="range" id="static-bldg-opacity" min="0" max="100" value="80" />
     </div>
 
     <div class="divider"></div>
@@ -221,13 +221,7 @@
     <div class="area-buttons" id="area-buttons"></div>
     <div class="panel-note">* City cases switch to the matching OA price source region</div>
 
-    <div class="divider"></div>
-    <h3>OA Price Dataset</h3>
-    <div class="area-buttons" id="price-mode-buttons">
-        <button class="area-btn active" data-price-mode="current">Current OA</button>
-        <button class="area-btn" data-price-mode="hpm">OA HPM</button>
-    </div>
-    <div class="panel-note" id="price-mode-status">Map: current OA avg price. Compare: postcode HPM median GBP/sqm.</div>
+    <div id="price-mode-status" style="display:none"></div>
 </div>
 
 <div class="right-stack">
@@ -273,11 +267,11 @@
         </div>
         <div class="legend-content" id="legend-content">
             <div class="section-title">Average Property Price (&pound;)</div>
-            <div class="legend-row"><div class="legend-swatch" style="background:#313695"></div><span>&lt; &pound;250k</span></div>
-            <div class="legend-row"><div class="legend-swatch" style="background:#4575b4"></div><span>&pound;250k &ndash; &pound;350k</span></div>
-            <div class="legend-row"><div class="legend-swatch" style="background:#74add1"></div><span>&pound;350k &ndash; &pound;450k</span></div>
-            <div class="legend-row"><div class="legend-swatch" style="background:#abd9e9"></div><span>&pound;450k &ndash; &pound;550k</span></div>
-            <div class="legend-row"><div class="legend-swatch" style="background:#e0f3f8"></div><span>&pound;550k &ndash; &pound;650k</span></div>
+            <div class="legend-row"><div class="legend-swatch" style="background:#1a5c38"></div><span>&lt; &pound;250k</span></div>
+            <div class="legend-row"><div class="legend-swatch" style="background:#2d8a56"></div><span>&pound;250k &ndash; &pound;350k</span></div>
+            <div class="legend-row"><div class="legend-swatch" style="background:#52b788"></div><span>&pound;350k &ndash; &pound;450k</span></div>
+            <div class="legend-row"><div class="legend-swatch" style="background:#95d5b2"></div><span>&pound;450k &ndash; &pound;550k</span></div>
+            <div class="legend-row"><div class="legend-swatch" style="background:#d8f3dc"></div><span>&pound;550k &ndash; &pound;650k</span></div>
             <div class="legend-row"><div class="legend-swatch" style="background:#fee090"></div><span>&pound;650k &ndash; &pound;800k</span></div>
             <div class="legend-row"><div class="legend-swatch" style="background:#fdae61"></div><span>&pound;800k &ndash; &pound;1.0M</span></div>
             <div class="legend-row"><div class="legend-swatch" style="background:#f46d43"></div><span>&pound;1.0M &ndash; &pound;1.25M</span></div>
@@ -285,13 +279,14 @@
             <div class="legend-row"><div class="legend-swatch" style="background:#a50026"></div><span>&ge; &pound;1.75M</span></div>
 
             <div class="section-title" style="margin-top:14px">Flood Zones</div>
-            <div class="legend-row"><div class="legend-swatch" style="background:rgba(250,204,21,.56);border:1px solid rgba(250,204,21,.9)"></div><span>Zone 2 &mdash; Medium probability</span></div>
-            <div class="legend-row"><div class="legend-swatch" style="background:rgba(248,113,113,.56);border:1px solid rgba(248,113,113,.92)"></div><span>Zone 3 &mdash; High probability</span></div>
-
-            <div class="section-title" style="margin-top:14px">Flood Source</div>
-            <div class="legend-row"><div class="legend-swatch" style="background:rgba(56,189,248,.42);border:1px solid rgba(56,189,248,.82)"></div><span>River</span></div>
-            <div class="legend-row"><div class="legend-swatch" style="background:rgba(34,211,238,.42);border:1px solid rgba(34,211,238,.82)"></div><span>Sea / Tidal</span></div>
-            <div class="legend-row"><div class="legend-swatch" style="background:rgba(167,139,250,.42);border:1px solid rgba(167,139,250,.82)"></div><span>River &amp; Sea</span></div>
+            <div class="zone-title">Zone 2 &mdash; Medium probability</div>
+            <div class="legend-row"><div class="legend-swatch" style="background:rgba(250,204,21,.52);border:1px solid rgba(250,204,21,.85)"></div><span>River</span></div>
+            <div class="legend-row"><div class="legend-swatch" style="background:rgba(125,211,252,.52);border:1px solid rgba(125,211,252,.85)"></div><span>Sea / Tidal</span></div>
+            <div class="legend-row"><div class="legend-swatch" style="background:rgba(196,181,253,.52);border:1px solid rgba(196,181,253,.85)"></div><span>River &amp; Sea</span></div>
+            <div class="zone-title">Zone 3 &mdash; High probability</div>
+            <div class="legend-row"><div class="legend-swatch" style="background:rgba(248,113,113,.52);border:1px solid rgba(248,113,113,.85)"></div><span>River</span></div>
+            <div class="legend-row"><div class="legend-swatch" style="background:rgba(34,211,238,.52);border:1px solid rgba(34,211,238,.85)"></div><span>Sea / Tidal</span></div>
+            <div class="legend-row"><div class="legend-swatch" style="background:rgba(167,139,250,.52);border:1px solid rgba(167,139,250,.85)"></div><span>River &amp; Sea</span></div>
         </div>
     </div>
 </div>
@@ -323,6 +318,16 @@ const PRICE_TREND_URLS = [
     'data/price_trend_by_zone.json',
     '../data/houseprice_per_sqm/hpm_processed/price_trend_by_zone.json',
 ];
+// Static pre-processed building vector tilesets — uploaded to Mapbox
+// Source layer names match the original filenames (verify in Mapbox Studio if needed)
+const STATIC_BLDG_TILESETS = {
+    'hull':           { url: 'mapbox://levineliu.1t4pirfr', sourceLayer: 'buildings_hull' },
+    'york':           { url: 'mapbox://levineliu.gxq6wscy', sourceLayer: 'buildings_york' },
+    'great-yarmouth': { url: 'mapbox://levineliu.0b7n5axl', sourceLayer: 'buildings_great_yarmouth' },
+    'london':         { url: 'mapbox://levineliu.5ricfvbo', sourceLayer: 'buildings_london' },
+};
+function staticBldgLayerId(k) { return 'static-buildings-' + k; }
+function staticBldgSrcId(k)   { return 'static-bldg-src-' + k; }
 const CITY_KEY_TREND_MAP = { 'hull': 'hull', 'york': 'york', 'great-yarmouth': 'great_yarmouth', 'london': 'london' };
 const TREND_ZONE_CFG = [
     { key: 'FZ3',      color: '#ef4444', label: 'Zone 3' },
@@ -346,30 +351,32 @@ const CITY_CASES = [
     { key: 'london', name: 'London', theme: 'multiple flood sources', center: [-0.1276, 51.5072], zoom: 10.8, areaCode: 'tq', boundaryType: 'london' },
 ];
 
-const BUILDING_MIN_ZOOM = 13;
-const BUILDING_COLOR_MIN_ZOOM = 14;
+const BUILDING_MIN_ZOOM = 15;
+const BUILDING_COLOR_MIN_ZOOM = 15;
 const BUILDING_VIEW_ZOOM = 15;
 const BUILDING_PITCH = 50;
 const BUILDING_BEARING = -15;
 const POSTCODE_COMPARE_MIN_TRANSACTIONS = 3;
 
 const PRICE_BINS = [
-    { max: 250000, color: '#313695' },
-    { max: 350000, color: '#4575b4' },
-    { max: 450000, color: '#74add1' },
-    { max: 550000, color: '#abd9e9' },
-    { max: 650000, color: '#e0f3f8' },
-    { max: 800000, color: '#fee090' },
-    { max: 1000000, color: '#fdae61' },
-    { max: 1250000, color: '#f46d43' },
-    { max: 1750000, color: '#d73027' },
-    { max: Infinity, color: '#a50026' },
+    { max: 250000,  color: '#1a5c38' },   // < £250k  — dark green
+    { max: 350000,  color: '#2d8a56' },   // £250-350k
+    { max: 450000,  color: '#52b788' },   // £350-450k
+    { max: 550000,  color: '#95d5b2' },   // £450-550k
+    { max: 650000,  color: '#d8f3dc' },   // £550-650k — very pale green
+    { max: 800000,  color: '#fee090' },   // £650-800k
+    { max: 1000000, color: '#fdae61' },   // £800k-1M
+    { max: 1250000, color: '#f46d43' },   // £1-1.25M
+    { max: 1750000, color: '#d73027' },   // £1.25-1.75M
+    { max: Infinity, color: '#a50026' },  // ≥ £1.75M
 ];
 const PRICE_STEP_STOPS = [];
 for (let i = 1; i < PRICE_BINS.length; i++) {
     PRICE_STEP_STOPS.push(PRICE_BINS[i - 1].max, PRICE_BINS[i].color);
 }
 const PRICE_COLOR = ['step', ['get', 'p'], PRICE_BINS[0].color, ...PRICE_STEP_STOPS];
+// Same bins but keyed on 'price' (static-buildings GeoJSON property)
+const STATIC_PRICE_COLOR = ['step', ['get', 'price'], PRICE_BINS[0].color, ...PRICE_STEP_STOPS];
 
 /* ============================================================
    MAP
@@ -396,12 +403,10 @@ map.once('load', () => {
     }
 });
 
-/* ---- Auto pitch: top-down < 14, angled >= 14 ---- */
-let _autoPitch = 0;                // track target pitch
-map.on('zoom', () => {
+/* ---- Auto pitch: top-down < zoom threshold, angled >= threshold ---- */
+map.on('zoomend', () => {
     const target = map.getZoom() < BUILDING_MIN_ZOOM ? 0 : BUILDING_PITCH;
-    if (target !== _autoPitch) {
-        _autoPitch = target;
+    if (Math.abs(map.getPitch() - target) > 2) {
         map.easeTo({ pitch: target, duration: 500 });
     }
 });
@@ -432,6 +437,7 @@ CITY_CASES.forEach(info => {
         renderFloodPriceCompareEmpty('Loading the postcode HPM comparison...');
         switchAreaPriceData(info.areaCode);
         renderPriceTrendChart(info.key);
+        showStaticBuildingsForCity(info.key);
     };
     areaBtnsEl.appendChild(btn);
 });
@@ -477,6 +483,8 @@ let floodPriceCompareLoadError = null;
 let priceTrendData = null;
 let priceTrendLoadError = null;
 let trendCollapsed = false;
+let staticBldgEnabled = true;
+let staticBldgOpacity = 0.8;
 
 function removePriceLayersAndSource() {
     ['oa-price-extrusion', 'oa-price-line', 'oa-price-fill', 'oa-price-query'].forEach(id => {
@@ -575,6 +583,7 @@ map.on('load', () => {
     addBoundaryQueryLayers();
     addPriceLayers();
     addBuildingLayer();
+    applyUiStateToMap();
     oaReady = true;
     map.once('idle', () => {
         setLoad('Rendering...', 95);
@@ -699,6 +708,10 @@ function addBuildingLayer() {
     });
 
     if (oaReady) scheduleBuildingColor();
+
+    // Init static pre-processed buildings (all 4 cities as vector tile sources)
+    initStaticBuildingLayers();
+    showStaticBuildingsForCity(currentCityCaseKey);
 }
 
 /* ============================================================
@@ -707,8 +720,6 @@ function addBuildingLayer() {
 let colorTimer = null;
 let compareTimer = null;
 let oaStateTimer = null;
-let bldgColorEnabled = true;
-let price3dEnabled = false;
 let buildingHeightScale = 1;
 let priceSourceListenerBound = false;
 let currentCompareZone = 'FZ2+FZ3';
@@ -863,7 +874,7 @@ async function fetchFirstJson(urls) {
 }
 
 function setPriceModeStatus(message) {
-    priceModeStatusEl.textContent = message;
+    if (priceModeStatusEl) priceModeStatusEl.textContent = message;
 }
 
 function updatePriceModeButtons() {
@@ -1106,12 +1117,11 @@ function dedupeBuildings(features) {
 }
 
 function colorBuildingsByOA() {
-    if (!bldgColorEnabled || !oaReady || !map.getLayer('3d-buildings') || !map.getLayer('oa-price-query')) {
-        if (!bldgColorEnabled) resetBuildingColor();
+    if (!oaReady || !map.getLayer('oa-price-query')) {
         return;
     }
+    // Below threshold: don't erase existing render, just skip update
     if (map.getZoom() < BUILDING_COLOR_MIN_ZOOM) {
-        resetBuildingColor();
         return;
     }
 
@@ -1151,9 +1161,7 @@ function colorBuildingsByOA() {
         if (best !== null) {
             const minHeight = Number(feature.properties?.min_height) || 0;
             const sourceHeight = Number(feature.properties?.height) || 0;
-            const renderH = price3dEnabled
-                ? minHeight + Math.max(2, (best - 100000) / 20000) * buildingHeightScale
-                : Math.max(minHeight, sourceHeight * buildingHeightScale);
+            const renderH = Math.max(minHeight, sourceHeight * buildingHeightScale);
             pricedBuildings.push({
                 type: 'Feature',
                 properties: {
@@ -1178,6 +1186,7 @@ function colorBuildingsByOA() {
             map.addLayer({
                 id: 'priced-buildings',
                 type: 'fill-extrusion',
+                minzoom: 15,
                 source: 'priced-buildings-src',
                 paint: {
                     'fill-extrusion-color': ['get', 'renderColor'],
@@ -1192,6 +1201,7 @@ function colorBuildingsByOA() {
         map.addLayer({
             id: 'priced-buildings',
             type: 'fill-extrusion',
+            minzoom: 15,
             source: 'priced-buildings-src',
             paint: {
                 'fill-extrusion-color': ['get', 'renderColor'],
@@ -1292,13 +1302,20 @@ function toggleVis(ids, on) {
     ids.forEach(id => { if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none'); });
 }
 
+function applyStaticBuildingHeight() {
+    for (const k of Object.keys(STATIC_BLDG_TILESETS)) {
+        const id = staticBldgLayerId(k);
+        if (map.getLayer(id)) map.setPaintProperty(id, 'fill-extrusion-height',
+            ['*', buildingHeightScale, ['get', 'height']]);
+    }
+}
+
 function applyUiStateToMap() {
     const floodOn = document.getElementById('chk-flood').checked;
     const priceOn = document.getElementById('chk-price').checked;
     const buildingsOn = document.getElementById('chk-buildings').checked;
     const fz2On = document.getElementById('chk-fz2').checked;
     const fz3On = document.getElementById('chk-fz3').checked;
-    const price3dOn = document.getElementById('chk-price-3d').checked;
     const floodOpacity = document.getElementById('flood-opacity').value / 100;
     const priceOpacity = document.getElementById('price-opacity').value / 100;
 
@@ -1306,7 +1323,6 @@ function applyUiStateToMap() {
     toggleVis(['flood-fz3-fill','flood-fz3-line'], floodOn && fz3On);
     toggleVis(['oa-price-fill','oa-price-line'], priceOn);
     toggleVis(['3d-buildings','priced-buildings'], buildingsOn);
-    toggleVis(['oa-price-extrusion'], false);   // replaced by per-building price-3d mode
 
     ['flood-fz2-fill','flood-fz3-fill'].forEach(id => {
         if (map.getLayer(id)) map.setPaintProperty(id, 'fill-opacity', floodOpacity);
@@ -1322,22 +1338,12 @@ document.getElementById('chk-flood').onchange = () => {
 };
 document.getElementById('chk-price').onchange = e => {
     applyUiStateToMap();
-    if (bldgColorEnabled) scheduleBuildingColor();
+    scheduleBuildingColor();
 };
 document.getElementById('chk-buildings').onchange = e => {
     applyUiStateToMap();
-    if (e.target.checked && bldgColorEnabled) scheduleBuildingColor();
-    if (!e.target.checked) resetBuildingColor();
-};
-document.getElementById('chk-bldg-color').onchange = e => {
-    bldgColorEnabled = e.target.checked;
-    if (bldgColorEnabled) scheduleBuildingColor();
+    if (e.target.checked) scheduleBuildingColor();
     else resetBuildingColor();
-};
-document.getElementById('chk-price-3d').onchange = e => {
-    price3dEnabled = e.target.checked;
-    applyUiStateToMap();
-    if (bldgColorEnabled) scheduleBuildingColor();
 };
 document.getElementById('chk-fz2').onchange = e => {
     applyUiStateToMap();
@@ -1361,6 +1367,18 @@ compareZoneButtons.forEach(button => {
 });
 updateCompareZoneButtons();
 
+document.getElementById('chk-static-bldg').onchange = e => {
+    staticBldgEnabled = e.target.checked;
+    for (const k of Object.keys(STATIC_BLDG_TILESETS)) {
+        const id = staticBldgLayerId(k);
+        if (map.getLayer(id)) {
+            // Only show the active city's layer (if enabled)
+            const vis = staticBldgEnabled && k === currentCityCaseKey ? 'visible' : 'none';
+            map.setLayoutProperty(id, 'visibility', vis);
+        }
+    }
+};
+
 document.getElementById('flood-opacity').oninput = e => {
     document.getElementById('flood-opacity-val').textContent = e.target.value + '%';
     applyUiStateToMap();
@@ -1371,14 +1389,13 @@ document.getElementById('price-opacity').oninput = e => {
     applyUiStateToMap();
 };
 
-document.getElementById('building-height').oninput = e => {
-    const v = e.target.value / 10;
-    buildingHeightScale = v;
-    document.getElementById('building-height-val').textContent = v.toFixed(1) + 'x';
-    if (map.getLayer('3d-buildings')) {
-        map.setPaintProperty('3d-buildings', 'fill-extrusion-height', ['interpolate', ['linear'], ['zoom'], BUILDING_MIN_ZOOM - 0.5, 0, BUILDING_MIN_ZOOM, ['*', v, ['get', 'height']]]);
+document.getElementById('static-bldg-opacity').oninput = e => {
+    staticBldgOpacity = +e.target.value / 100;
+    document.getElementById('static-bldg-opacity-val').textContent = e.target.value + '%';
+    for (const k of Object.keys(STATIC_BLDG_TILESETS)) {
+        const id = staticBldgLayerId(k);
+        if (map.getLayer(id)) map.setPaintProperty(id, 'fill-extrusion-opacity', staticBldgOpacity);
     }
-    if (bldgColorEnabled) scheduleBuildingColor();
 };
 
 const legendEl = document.getElementById('legend');
@@ -1571,6 +1588,48 @@ function initTrendTooltip() {
 
 initTrendTooltip();
 renderPriceTrendChart(currentCityCaseKey);
+
+/* ============================================================
+   STATIC BUILDINGS — zoom-independent pre-processed GeoJSON
+   ============================================================ */
+function initStaticBuildingLayers() {
+    for (const [k, cfg] of Object.entries(STATIC_BLDG_TILESETS)) {
+        if (!map.getSource(staticBldgSrcId(k))) {
+            map.addSource(staticBldgSrcId(k), { type: 'vector', url: cfg.url });
+        }
+        if (!map.getLayer(staticBldgLayerId(k))) {
+            map.addLayer({
+                id: staticBldgLayerId(k),
+                type: 'fill-extrusion',
+                source: staticBldgSrcId(k),
+                'source-layer': cfg.sourceLayer,
+                layout: { visibility: 'none' },
+                paint: {
+                    'fill-extrusion-color': STATIC_PRICE_COLOR,
+                    'fill-extrusion-height': ['get', 'height'],
+                    'fill-extrusion-base': 0,
+                    'fill-extrusion-opacity': staticBldgOpacity,
+                },
+            });
+        }
+    }
+    console.log('[static-buildings] All vector tile sources initialised');
+}
+
+function showStaticBuildingsForCity(cityKey) {
+    for (const k of Object.keys(STATIC_BLDG_TILESETS)) {
+        const id = staticBldgLayerId(k);
+        if (map.getLayer(id)) {
+            map.setLayoutProperty(id, 'visibility',
+                staticBldgEnabled && k === cityKey ? 'visible' : 'none');
+        }
+    }
+}
+
+function loadStaticBuildings(cityKey) {
+    // Legacy entry point — now just delegates to visibility toggle
+    showStaticBuildingsForCity(cityKey);
+}
 
 loadRemotePriceData();
 </script>
