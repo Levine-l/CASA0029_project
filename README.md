@@ -12,3 +12,10 @@ st: levineliu.71vz336b
 tq: levineliu.3w3nswk7
 se: levineliu.40f0lqf6
 so: levineliu.62ncteef
+
+
+buildings in four cities in mapbox(Z10 - 16):
+London: levineliu.89ciem4a
+York: levineliu.drsadjct
+Hull: levineliu.6oin1hba
+Yarmouth: levineliu.099ee9on
