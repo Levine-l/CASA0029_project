@@ -1191,19 +1191,30 @@ const tooltip = document.getElementById('tooltip');
 map.on('click', e => {
     const oaF = map.queryRenderedFeatures(e.point, { layers: ['oa-price-fill'].filter(id => map.getLayer(id)) });
     const flF = map.queryRenderedFeatures(e.point, { layers: ['flood-fz3-fill','flood-fz2-fill'].filter(id => map.getLayer(id)) });
-    if (!oaF.length && !flF.length) { popup.remove(); return; }
+    const staticBldgLayerIds = Object.keys(STATIC_BLDG_TILESETS)
+        .map(k => staticBldgLayerId(k))
+        .filter(id => map.getLayer(id) && map.getLayoutProperty(id, 'visibility') === 'visible');
+    const bldgF = staticBldgLayerIds.length ? map.queryRenderedFeatures(e.point, { layers: staticBldgLayerIds }) : [];
+    if (!oaF.length && !flF.length && !bldgF.length) { popup.remove(); return; }
 
     let html = '';
     if (oaF.length) {
         const p = oaF[0].properties;
-           const metric = getOaMetricForFeature(oaF[0]);
-           const fmt = metric.price >= 1e6 ? '\u00A3' + (metric.price / 1e6).toFixed(2) + 'M' : '\u00A3' + (metric.price / 1000).toFixed(0) + 'k';
+        const metric = getOaMetricForFeature(oaF[0]);
+        const fmt = metric.price >= 1e6 ? '\u00A3' + (metric.price / 1e6).toFixed(2) + 'M' : '\u00A3' + (metric.price / 1000).toFixed(0) + 'k';
         html += '<div class="popup-title">Output Area</div>'
              +  '<div class="popup-row"><span class="label">OA Code</span><span class="value">' + p.c + '</span></div>'
-               +  '<div class="popup-price" style="color:' + priceHex(metric.price) + '">' + fmt + '</div>'
-               +  '<div class="popup-row"><span class="label">Dataset</span><span class="value">' + metric.datasetLabel + '</span></div>'
-               +  '<div class="popup-row"><span class="label">' + metric.priceLabel + '</span><span class="value">\u00A3' + Math.round(metric.price).toLocaleString('en-GB') + '</span></div>'
-               +  '<div class="popup-row"><span class="label">Transactions</span><span class="value">' + metric.transactions + '</span></div>';
+             +  '<div class="popup-price" style="color:' + priceHex(metric.price) + '">' + fmt + '</div>'
+             +  '<div class="popup-row"><span class="label">' + metric.priceLabel + '</span><span class="value">\u00A3' + Math.round(metric.price).toLocaleString('en-GB') + '</span></div>'
+             +  '<div class="popup-row"><span class="label">Transactions</span><span class="value">' + metric.transactions + '</span></div>';
+    } else if (bldgF.length) {
+        const bp = bldgF[0].properties;
+        const bPrice = Number(bp.price) || 0;
+        const bFmt = bPrice >= 1e6 ? '\u00A3' + (bPrice / 1e6).toFixed(2) + 'M' : '\u00A3' + (bPrice / 1000).toFixed(0) + 'k';
+        html += '<div class="popup-title">Building</div>'
+             +  '<div class="popup-price" style="color:' + priceHex(bPrice) + '">' + bFmt + '</div>'
+             +  '<div class="popup-row"><span class="label">Avg Price</span><span class="value">\u00A3' + Math.round(bPrice).toLocaleString('en-GB') + '</span></div>';
+        if (bp.height) html += '<div class="popup-row"><span class="label">Height</span><span class="value">' + Number(bp.height).toFixed(1) + ' m</span></div>';
     }
     if (flF.length) {
         if (html) html += '<hr style="border:0;border-top:1px solid rgba(148,163,184,.15);margin:10px 0">';
