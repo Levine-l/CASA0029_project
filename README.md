@@ -93,10 +93,10 @@ CASA0029_project/
 │   Processed house price per square metre and Output Area level files.
 │
 │   ├── oa21_hpm_priceper.csv
-│   │   Output Area-level processed house price per square metre data.
+│   │   Output Area level processed house price per square metre data.
 │   │
 │   └── postcode_hpm_selected.csv
-│       Selected postcode-level house price per square metre data.
+│       Selected postcode level house price per square metre data.
 │
 └── pp_data/
     Processed / compressed Price Paid Data outputs.
