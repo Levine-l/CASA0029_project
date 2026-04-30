@@ -67,6 +67,8 @@ Great Yarmouth.
 These locations were selected to represent different flood contexts, including river flooding, coastal flooding, surface water exposure, and mixed urban flood risk.
 
 ## Repository Structure
+
+```text
 CASA0029_project/
 │
 ├── index.html
@@ -106,7 +108,7 @@ CASA0029_project/
     │
     └── pp_all_years_postcode_avg_remaining.zip
         Average postcode-level Price Paid Data for remaining areas.
-
+```
 
 ## Mapbox Tilesets
 
